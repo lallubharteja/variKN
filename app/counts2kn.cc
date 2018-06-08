@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     ('d',"ndrop=INT", "arg", "0", "Drop all words with less than ndrop occurances. If both nfirst and ndrop options are specified, the tighter bound is taken")
     ('s', "smallvocab", "", "", "Vocabulary is less than 65000 entries. Saves some memory.")
     ('p',"prunetreshold","arg","-1","Prune out the n-grams, for which the score does not exceed the treshold. Default: no pruning=0.")
-    ('A',"absolute","","","Use absolute discounting. Several options won't work with this.")
+    ('A',"absolute","arg","0.001","Use absolute discounting with a discounting parameter (default 0.001). Several options won't work with this.")
     ('C', "clear_history", "", "", "Clear LM history on each start of sentence tag (<s>).")
     //('e', "ehist", "", "", "Debug ehist pruning.")
     //('l', "clusterfile=FILE", "arg", "", "Uses clustering specified in clusterfile.")
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
     ('D', "discard_cutoffs", "", "", "Simply throw away cutoff grams, do not adjust lower order counts.")
     ('N', "discard_unks", "", "", "Remove n-grams containing OOV words.")    
     ('L', "longint", "", "", "Store counts in a long int type. Needed for big training sets.")
-    ;
+    ('P',"cdouble","","", "Store counts in double type. Needed when reading in probabilities as counts");
   config.parse(argc,argv,2);
   
   std::string optiname(config["opti"].get_str());
@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
   const bool narpa=config["narpa"].specified;
   const bool arpa=config["arpa"].specified;
   const bool use_3nzer=config["3nzer"].specified;
-  const bool absolute=config["absolute"].specified;
   const int ndrop=config["ndrop"].get_int();
   const int nfirst=config["nfirst"].get_int();
   const bool smallvocab=config["smallvocab"].specified;
@@ -55,6 +54,10 @@ int main(int argc, char **argv) {
   const std::string countsout(config["write_counts"].get_str());
   const std::string vocabout(config["write_vocab"].get_str());
   const std::string rcfile(config["real_counts_data"].get_str());
+  const bool cdouble=config["cdouble"].specified;
+  const bool absolute=config["absolute"].specified;
+  
+  float disc=0.71;
   //const bool skip_unks = config["skip_unks"].specified;
   //assert(!skip_unks); // FIXME: implement this
   bool ok=true;
@@ -66,6 +69,10 @@ int main(int argc, char **argv) {
 
   int counts_in=0;
   if (config["counts"].specified) counts_in=1;
+  if (absolute) 
+    disc=config["absolute"].get_double();
+  
+    
   if (config["h_counts"].specified) {
     if (counts_in==1) {
       fprintf(stderr,"Cannot specify both -counts and -h_counts. Exit.\n");
@@ -110,11 +117,13 @@ int main(int argc, char **argv) {
 
     /* Parse the arguments, create the right kind of model*/
     if (!use_3nzer && !smallvocab) {
-      if (!longint) kn=new InterKn_int_disc<int, int>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
-      else kn=new InterKn_int_disc<int, long>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
+      if (cdouble) kn=new InterKn_int_disc<int, float>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
+      else if (longint) kn=new InterKn_int_disc<int, long>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
+      else kn=new InterKn_int_disc<int, int>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
     } else if (!use_3nzer && smallvocab) {
-      if (!longint) kn=new InterKn_int_disc<unsigned short, int>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
-      else kn=new InterKn_int_disc<unsigned short, long>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
+      if (cdouble) kn=new InterKn_int_disc<unsigned short, float>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
+      else if (!longint) kn=new InterKn_int_disc<unsigned short, int>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
+      else kn=new InterKn_int_disc<unsigned short, long>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, "", hashs);
     } else if (use_3nzer && !smallvocab) {
       if (!longint) kn=new InterKn_int_disc3<int, int>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
       else kn=new InterKn_int_disc3<int, long>(absolute, dataname, vocabname, optiname, counts_in, n, ndrop, nfirst, NULL, prunedata_name, ss_sym, hashs);
@@ -130,7 +139,7 @@ int main(int argc, char **argv) {
     if (absolute) fprintf(stderr,"absolute discounting.\n");
     else fprintf(stderr,"Kneser-Ney smoothing.\n");
 
-    if (init_disc) kn->init_disc(0.71); 
+    kn->init_disc(disc); 
     
     //if (ehist) kn->use_ehist_pruning(kn->input_data_size);
     kn->cutoffs=cutoffs;
@@ -144,16 +153,18 @@ int main(int argc, char **argv) {
       kn->vocab.write(out.file);
     }
     
-    if (countsout.size()) {
-      io::Stream out(countsout, "w");
-      kn->write_counts(out.file);
-    }
-    
     if (!narpa) {
       kn->counts2lm(&lm);
       lm.write(out.file,!arpa);
     } else kn->counts2asciilm(out.file);
     out.close();
+    
+    if (countsout.size()) {
+      io::Stream out(countsout, "w");
+      kn->write_counts(out.file);
+    }
+    
+
     delete kn;
   }
   catch (std::exception &e) {

@@ -18,11 +18,13 @@ void InterKn_int_disc<KT, ICT>::init_disc(float x) {
   flatv2disc(di);
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 void InterKn_int_disc3<KT, ICT>::init_disc(float x) {
   std::vector<float> di(this->m_order*3,x);
   flatv2disc(di);
 }
+#endif
 
 template <typename KT, typename ICT>
 void InterKn_int_disc<KT, ICT>::disc2flatv(std::vector<float> &v){
@@ -30,6 +32,7 @@ void InterKn_int_disc<KT, ICT>::disc2flatv(std::vector<float> &v){
   for (int i=0;i<this->m_order;i++) v[i]=m_discount[i+1];
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 void InterKn_int_disc3<KT, ICT>::disc2flatv(std::vector<float> &v) {
   v.resize(this->m_order*3);
@@ -37,6 +40,7 @@ void InterKn_int_disc3<KT, ICT>::disc2flatv(std::vector<float> &v) {
     for (int j=0;j<3;j++) 
       v[(i-1)*3+j]=m_discount[i][j];
 }
+#endif
 
 template <typename KT, typename ICT>
 float InterKn_int_disc<KT, ICT>::flatv2disc(std::vector<float> &v) {
@@ -57,6 +61,7 @@ float InterKn_int_disc<KT, ICT>::flatv2disc(std::vector<float> &v) {
   return(debug_overthrow);
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 float InterKn_int_disc3<KT, ICT>::flatv2disc(std::vector<float> &v) {
   float debug_overthrow=0.0; // This is no longer needed, should remove
@@ -77,6 +82,7 @@ float InterKn_int_disc3<KT, ICT>::flatv2disc(std::vector<float> &v) {
   }
   return(debug_overthrow);
 }
+#endif
 
 /************************************************************
  Non-inlined functions for the different child classes      *
@@ -88,15 +94,18 @@ InterKn_int_disc<KT, ICT>::InterKn_int_disc(
   const std::string optisource, 
   const int read_counts, const int order, const int ndrop, const int nfirst, 
   Storage_t<KT, ICT> *datastorage, const std::string prunedata_name,  
-  const std::string sent_boundary,
+  const std::string sent_boundary, const std::string read_prob, const bool average,
   const indextype hashsize):
   InterKn_t<KT, ICT>(absolute, data, optisource, prunedata_name)
 {
   this->moc = new MultiOrderCounts_1nzer<KT, ICT>;
+  this->read_prob = read_prob;
+  this->average = average;
   this->constructor_helper(vocab, read_counts, order, ndrop, nfirst, 
 		     datastorage, hashsize, sent_boundary);
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 InterKn_int_disc3<KT, ICT>::InterKn_int_disc3(
   const bool absolute, const std::string data, const std::string vocab, 
@@ -111,6 +120,7 @@ InterKn_int_disc3<KT, ICT>::InterKn_int_disc3(
   this->constructor_helper(vocab, read_counts, order, ndrop, nfirst, 
 		     datastorage, hashsize, sent_boundary);
 }
+#endif
 
 template <typename KT, typename ICT>
 void InterKn_int_disc<KT, ICT>::estimate_nzer_counts() {
@@ -160,6 +170,7 @@ std::vector<float> InterKn_t<KT, ICT>::calculate_leaveoneout_discounts(int order
   return result;
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 void InterKn_int_disc3<KT, ICT>::estimate_nzer_counts() {
   std::vector<KT> v(this->m_order);
@@ -188,6 +199,7 @@ void InterKn_int_disc3<KT, ICT>::estimate_nzer_counts() {
     }
   }
 }
+#endif
 
 template <typename KT, typename ICT> template <typename BOT> void InterKn_int_disc<KT, ICT>::
 remove_sent_start_prob_fbase(BOT *dummy) {
@@ -200,6 +212,7 @@ remove_sent_start_prob_fbase(BOT *dummy) {
   this->moc->IncrementBackoff(1,NULL,&bo);
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT> template <typename BOT> void InterKn_int_disc3<KT, ICT>::
 remove_sent_start_prob_fbase(BOT *dummy) {
   std::vector<KT> tmp(1, (KT) this->m_sent_boundary);
@@ -211,6 +224,7 @@ remove_sent_start_prob_fbase(BOT *dummy) {
   bo.nzer[std::min((ICT) 2, value-1)]=-1;
   this->moc->IncrementBackoff(1,NULL,&bo);
 }
+#endif
 
 template <typename KT, typename ICT>
 float InterKn_int_disc<KT, ICT>::kn_prob(const int order, const KT *i, const ICT num)
@@ -231,6 +245,23 @@ float InterKn_int_disc<KT, ICT>::kn_prob(const int order, const KT *i, const ICT
   return prob;
 }
 
+/*template <typename KT, typename ICT>
+float InterKn_int_disc<KT, ICT>::file_prob(const int order, const KT *i)
+{
+  float prob=0;
+  if (order==1) {
+    // Unigram smoothing 
+    prob = (m_discount[1]/((float) this->vocab.num_words());
+    //fprintf(stderr,"Unigram smooth %.4f\n", prob);
+  }
+  
+  prob+=(this->moc->GetProb(order,i) - m_discount[order]/(float) this->moc->GetBackoffDen(order, i));
+  //fprintf(stderr,"knp: (%ld - %.4f) / %ld = %f -> %f\n", (long) num, m_discount[order], (long) den, (num-m_discount[order])/den, prob);
+  return prob;
+}
+*/
+
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 float InterKn_int_disc3<KT, ICT>::kn_prob(const int order, const KT *i, const ICT num){
   double prob=0;
@@ -249,6 +280,7 @@ float InterKn_int_disc3<KT, ICT>::kn_prob(const int order, const KT *i, const IC
   prob += (num-m_discount[order][std::min((ICT) 2,num-1)])/den;
   return(prob);
 }
+#endif
 
 template <typename KT, typename ICT> float InterKn_int_disc<KT, ICT>::
 kn_coeff(const int order, const KT *i){
@@ -256,11 +288,12 @@ kn_coeff(const int order, const KT *i){
 
   MultiOrderCounts_counter_types::bo_c<ICT> bb;
   this->moc->GetBackoff(order,i,&bb);
-  //fprintf(stderr," BO (%.5f +%d)/ %d\n", m_discount[order] *bb.nzer, bb.prune_den ,bb.den);
+  //fprintf(stderr," BO (%.5f * %.d +%d)/ %d\n", m_discount[order], bb.nzer, bb.prune_den ,bb.den);
   if (bb.den) return((bb.nzer*m_discount[order]+bb.prune_den)/(float)bb.den);
   return(1.0);
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT> template <typename BOT> 
 float InterKn_int_disc3<KT, ICT>::kn_coeff_3nzer(const int order, const KT *i, 
 						 const BOT *dummy){
@@ -285,6 +318,7 @@ float InterKn_int_disc3<KT, ICT>::kn_coeff_3nzer(const int order, const KT *i,
 		      +bb.prune_den)/(float)bb.den);
   return(1.0);
 }
+#endif
 
 template <typename KT, typename CT> void InterKn_t<KT, CT>::
 create_model(float prunetreshold) {
@@ -294,19 +328,22 @@ create_model(float prunetreshold) {
   }
 
   find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
-  if (prunetreshold>0.0 || this->cutoffs.size() || this->discard_ngrams_with_unk) {
-    if (!this->prune_with_real_counts) {
-      prune_model(prunetreshold, 1,(Storage_t<KT, CT> *) NULL);
-    } else {
-      io::Stream::verbose=true;
-      io::Stream in(this->m_prunedata_name, "r", io::REOPENABLE);
-      Storage_t<KT, CT> real_counts;
-      real_counts.read(in.file, this->vocab);
-      fprintf(stderr,"real counts size %ld\n", (long) real_counts.size());
-      prune_model(prunetreshold, 1, &real_counts);
-    }
+  if (this->read_prob.empty()) {
+    //fprintf(stderr,"Worlds are colliding\n");
+    if (prunetreshold>0.0 || this->cutoffs.size() || this->discard_ngrams_with_unk) {
+      if (!this->prune_with_real_counts) {
+        prune_model(prunetreshold, 1,(Storage_t<KT, CT> *) NULL);
+      } else {
+        io::Stream::verbose=true;
+        io::Stream in(this->m_prunedata_name, "r", io::REOPENABLE);
+        Storage_t<KT, CT> real_counts;
+        real_counts.read(in.file, this->vocab);
+        fprintf(stderr,"real counts size %ld\n", (long) real_counts.size());
+        prune_model(prunetreshold, 1, &real_counts);
+      }
+    } 
+    find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
   }
-  find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
 }
 
 template <typename KT, typename CT> template <typename BOT> 
@@ -451,6 +488,7 @@ void InterKn_int_disc<KT, ICT>::prune_gram(
   }
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 void InterKn_int_disc3<KT, ICT>::prune_gram(
   std::vector<KT> &v, ICT num, bool recorrect_kn, 
@@ -485,6 +523,7 @@ void InterKn_int_disc3<KT, ICT>::prune_gram(
     }
   }
 }
+#endif
 
 template <typename KT, typename CT> template <typename BOT> 
 void InterKn_t<KT, CT>::add_zeroprob_grams_fbase(BOT *dummy) {
@@ -645,7 +684,6 @@ void InterKn_t<KT, CT>::constructor_helper(
     }
     this->moc->vocabsize=this->vocab.num_words();
   } else {
-    fprintf(stderr,"Reading data\n");
     if (vocabname.length()) {
       fprintf(stderr,"Using vocab %s\n", vocabname.c_str());
       if (this->vocab.num_words()>1) 
@@ -722,12 +760,23 @@ void InterKn_t<KT, CT>::constructor_helper(
   }
 
   this->set_order(moc->order());
+  if (sent_start_symbol.size()) this->m_sent_boundary=this->vocab.word_index(sent_start_symbol);
 
   if (read_counts != 1) {
     fprintf(stderr,"Estimating bo counts\n");
     estimate_bo_counts(true);
     fprintf(stderr,"Estimating nzer counts\n");
     this->estimate_nzer_counts();
+  }
+
+  if (!this->read_prob.empty()){
+    moc->average = this->average;
+    for (int o=1; o<=order; o++) {
+          io::Stream probin(this->read_prob, "r");
+	  moc->InitializeProbsFromText(probin.file, &(this->vocab), false, o, sent_start_symbol);
+          probin.close();
+    }
+    //this->average_probs(); //not required if outputting probs as counts
   }
 
   this->m_optistorage=new Storage<KT>;
@@ -738,7 +787,6 @@ void InterKn_t<KT, CT>::constructor_helper(
   }
   fprintf(stderr,"Optistorage size %ld\n",(long) this->m_optistorage->size());
 
-  if (sent_start_symbol.size()) this->m_sent_boundary=this->vocab.word_index(sent_start_symbol);
 
   this->model_cost_scale=log2(this->vocab.num_words())+2*10;
 }
@@ -760,6 +808,7 @@ void InterKn_int_disc<KT, ICT>::set_order(int o) {
   initialize_minmax();
 }
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 void InterKn_int_disc3<KT, ICT>::set_order(int o) {
   int old_order=this->m_order;  
@@ -770,6 +819,7 @@ void InterKn_int_disc3<KT, ICT>::set_order(int o) {
   }
   initialize_minmax();
 }
+#endif
 
 template <typename KT, typename CT>
 void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
@@ -827,6 +877,11 @@ void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
 template <typename KT, typename CT>
 void InterKn_t<KT, CT>::counts2ascii(FILE *out) {
   moc->WriteCounts(out);
+}
+
+template <typename KT, typename CT>
+void InterKn_t<KT, CT>::probs2ascii(FILE *out) {
+  moc->WriteProbs(out);
 }
 
 template <typename KT, typename CT>
@@ -977,7 +1032,7 @@ void InterKn_t<KT, CT>::find_coeffs(float brak, float precision,
 template <typename KT, typename CT>
 void InterKn_t<KT, CT>::estimate_bo_counts(bool zero_sentstart) {
   if (this->m_absolute_discounting) {
-    estimate_bo_counts_absolute_discounting();
+    estimate_bo_counts_absolute_discounting(zero_sentstart);
     return;
   }
 
@@ -1029,7 +1084,7 @@ void InterKn_t<KT, CT>::estimate_bo_counts_absolute_discounting(bool zero_sentst
   /* Estimate backoff and lower order counts            */
   std::vector<KT> v(this->m_order);
   CT value;
-
+  fprintf(stderr,"the sentence boundary symbol is initialised to %d \n", this->m_sent_boundary);
   if (this->m_sent_boundary<0) {
     for (int o=this->m_order;o>=1;o--) {
       moc->StepCountsOrder(true,o,&v[0],&value);
@@ -1069,4 +1124,60 @@ void InterKn_t<KT, CT>::remove_zeroprob_grams() {
       if (*(m->Idx2Valp(i))<1e-3)
 	RemoveEntryIdx(m->m,i--);
   }
+}
+
+template <typename KT, typename CT>
+void InterKn_t<KT, CT>::average_probs() {
+  std::vector<KT> v(this->m_order);
+  CT value;
+  double prob;
+
+  for (int o=1;o<=this->m_order;o++) {
+    this->moc->StepCountsOrder(true, o, &v[0], &value);
+    while (this->moc->StepCountsOrder(false, o, &v[0], &value)) {
+      //for (int i=0;i<o;i++)
+      //  fprintf(stderr," %s",this->vocab.word(v[i]).c_str());
+      if (value==0){
+        fprintf(stderr, "Warning: One of the counts was zero");
+      }
+      prob = this->moc->GetProb(o,&v[0]);
+      //fprintf(stderr," %f %li\n", prob, value);
+      this->moc->SetProb(o,&v[0],prob /((double) value));
+    }
+  }
+}
+
+template <typename KT, typename CT>
+void InterKn_t<KT, CT>::normalize_probs() {
+  std::vector<KT> v(this->m_order);
+  CT value;
+  double prob, norm=0.0, check_prob=0.0;
+
+  int o = 1;
+  this->moc->StepCountsOrder(true, o, &v[0], &value);
+  while (this->moc->StepCountsOrder(false, o, &v[0], &value)) {
+    prob = this->moc->GetProb(o,&v[0]);
+    norm += prob;
+  }
+  this->moc->StepCountsOrder(true, o, &v[0], &value);
+  while (this->moc->StepCountsOrder(false, o, &v[0], &value)) {
+    prob = this->moc->GetProb(o,&v[0]);
+    this->moc->SetProb(o,&v[0],prob /norm);
+    check_prob += prob/norm;
+  }
+//  fprintf(stderr,"Probability sum for order %i %f\n", o, check_prob);
+
+//  for (o=2;o<=this->m_order;o++) {
+//    this->moc->StepCountsOrder(true, o, &v[0], &value);
+//    while (this->moc->StepCountsOrder(false, o, &v[0], &value)) {
+//      for (int i=0;i<o;i++)
+//        fprintf(stderr," %s",this->vocab.word(v[i]).c_str());
+//      if (value==0){
+//        fprintf(stderr, "Warning: One of the counts was zero");
+//      }
+//      prob = this->moc->GetProb(o,&v[0]);
+//      fprintf(stderr," %f %li\n", prob, value);
+//      //this->moc->SetProb(o,&v[0],prob /((double) value));
+//    }
+//  }
 }

@@ -7,7 +7,8 @@
 #include <cassert>
 #include "sikMatrix.hh"
 #include "Storage.hh"
-#include "InterKn.hh"
+//#include "InterKn.hh"
+//#include "ProbsAbs.hh"
 
 namespace MultiOrderCounts_counter_types {
 // Different smoothing schemes defined here (bo_*)
@@ -139,7 +140,7 @@ class MultiOrderCounts :
   public MultiOrderCounts_typed_interfaces<KT, CT, MultiOrderCounts_counter_types::bo_3c<CT> >,
   public MultiOrderCounts_typed_interfaces<KT, CT, MultiOrderCounts_counter_types::bo_3c_fp<CT> > {
 public:
-  MultiOrderCounts(): vocabsize(1000000), hashsize(0), m_cur_order(1), m_cur_ng(0) {}
+  MultiOrderCounts(): vocabsize(1000000), hashsize(0), m_cur_order(1), m_cur_ng(0), m_uni_counts_den((CT) 0) {}
   virtual ~MultiOrderCounts();
   
   typedef MultiOrderCounts_counter_types::bo_c<CT> bo_c;
@@ -155,9 +156,11 @@ public:
   virtual inline indextype bo_order_size(int o)=0;
 
   virtual void WriteCounts(FILE *out)=0;
+  virtual void WriteProbs(FILE *out)=0;
   virtual void ReadCounts(FILE *in)=0;
   virtual void RemoveOrder(int order)=0;
   long InitializeCountsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym);
+  long InitializeProbsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym);
   long InitializeCountsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx);
   void UseAsCounts(sikMatrix<KT, CT> *mat);
   bool NextVector(std::vector<KT> &v);
@@ -176,6 +179,15 @@ public:
 				KT *indices, CT *value);
   //inline void RemoveEmptyNodes(const int order) {RemoveEmptyNodes(order,0,0);}
 
+  /* Manipulation of probs */
+  inline float GetProb(const std::vector<KT> &v);
+  inline float GetProb(const int order, const KT *v);
+  inline void SetProb(const std::vector <KT> &v, const CT value) {
+    SetProb(v.size(),&v[0],value);
+  }
+  inline void SetProb(const int order, const KT *v, const CT value);
+
+
   /* Manipulation of counts other than nzer and prune_dennn*/
   inline CT GetCount(const std::vector<KT> &v);
   inline CT GetCount(const int order, const KT *v);
@@ -186,13 +198,19 @@ public:
   inline CT IncrementCount(std::vector<KT> &v, const CT value) {
     return(IncrementCount(v.size(),&v[0],value));
   }
+  inline void IncrementProb(std::vector<KT> &v, const CT value) {
+    IncrementProb(v.size(),&v[0],value);
+  }
+
   virtual CT GetBackoffDen(const int order, const KT *v)=0;
   virtual CT GetBackoffNzer(const int order, const KT *v) {assert(false); return (CT) -1;}
   inline CT GetBackoffDen(const std::vector<KT> &v);
   inline CT GetBackoffNzer(const std::vector<KT> &v);
 
   inline CT IncrementCount(const std::vector<KT> &v, const CT value);
+  inline void IncrementProb(const std::vector<KT> &v, const CT value);
   inline CT IncrementCount(const int order, const KT *v,const CT value);
+  inline void IncrementProb(const int order, const KT *v,const CT value);
   virtual void IncrementBackoffDen(const int order, const KT *v, 
 				   const CT value)=0;
   virtual void IncrementBackoffNzer(const int order, const KT *v, 
@@ -208,8 +226,12 @@ public:
 					const CT value)=0;
   int vocabsize;
   indextype hashsize;
+  bool average;
+  CT m_uni_counts_den;
   
   std::vector<sikMatrix<KT, CT> * > m_counts;   // This should be private
+  std::vector<sikMatrix<KT, float> * > m_probs;   // This should be private 
+  std::vector<sikMatrix<KT, float> * > m_probs_den;   // This should be private 
   
   virtual void IncrementBackoffCacheNzer(const int order, const KT *v, 
 					 const CT value){assert(false);}
@@ -234,8 +256,9 @@ using MultiOrderCounts_typed_interfaces<KT, CT, bo_3c_fp>::x
   inline void write_num(FILE *out, const int val)   {fprintf(out,"%d",val);}
   inline void write_num(FILE *out, const unsigned int val)   {fprintf(out,"%u",val);}
   inline void write_num(FILE *out, const long val)   {fprintf(out,"%ld",val);}
-  inline void write_num(FILE *out, const float val) {fprintf(out,"%.4f",val);}
+  inline void write_num(FILE *out, const float val) {fprintf(out,"%.12f",val);}
   inline void write_num(FILE *out, const double val) {fprintf(out,"%.4f",val);}
+  inline void write_prob(FILE *out, const float val) {fprintf(out,"%.12f",val);}
   inline void read_num(int *val, const std::string *s, bool *ok) {
     *val = str::str2long(s, ok);
   }
@@ -261,6 +284,7 @@ using MultiOrderCounts_typed_interfaces<KT, CT, bo_3c_fp>::x
 protected:
   std::vector<int> m_do_not_delete;
   void allocate_matrices_counts(int o);
+  void allocate_matrices_probs(int o);
   
   /* For NextVector() */
   int m_cur_order;
@@ -287,6 +311,7 @@ public:
 
   inline int order() {return MultiOrderCounts<KT, CT>::m_counts.size()-1;}
   void WriteCounts(FILE *out);
+  void WriteProbs(FILE *out);
   void ReadCounts(FILE *in);
 
   void RemoveOrder(int order);
@@ -393,9 +418,9 @@ private:
   }
 
   inline void ReadCounts_BOhelper(bo_c *bo, std::string *s, bool *ok) {
-    bo->nzer = str::str2long(s, ok);
-    bo->den  = str::str2long(s+1, ok);
-    bo->prune_den  = str::str2long(s+2, ok);
+    this->read_num(&(bo->nzer), s, ok);
+    this->read_num(&(bo->den), s+1, ok);
+    this->read_num(&(bo->prune_den), s+2, ok);
   }
 };
 

@@ -8,6 +8,8 @@
 
 const int MAX_WLEN=1000;
 #define MAX_WLEN_FMT_STRING "%1000s" // For limiting fscanf width, must be modified to match MAX_WLEN
+#define MAX_PLEN_FMT_STRING "%lf" // For limiting fscanf width, must be modified to match MAX_WLEN
+#define DO_NOT_USE_INTERKN_WITH_FLOATS true // For switching on compiling of inter_kn_disc3
 const double MINLOGPROB=-60;
 const double MINPROB=1e-60;
 

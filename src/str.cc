@@ -271,7 +271,7 @@ namespace str {
       exit(1);
     }
 #endif
-
+    //fprintf(stderr, "%f %s \n",value, str);
     if (*str == '\0' || *endptr != '\0')
       *ok = false;
 

@@ -5,6 +5,11 @@
 **********************************************************************/
 
 template <typename KT, typename CT>
+float MultiOrderCounts<KT, CT>::GetProb(const std::vector<KT> &v) {
+  return(GetProb(v.size(),&v[0]));
+}
+
+template <typename KT, typename CT>
 CT MultiOrderCounts<KT, CT>::GetCount(const std::vector<KT> &v) {
   return(GetCount(v.size(),&v[0]));
 }
@@ -13,6 +18,13 @@ template <typename KT, typename CT>
 CT MultiOrderCounts<KT,CT>::IncrementCount(const std::vector<KT> &v, 
 					 const CT value) {
   return(IncrementCount(v.size(), &v[0],value));
+}
+
+template <typename KT, typename CT>
+void MultiOrderCounts<KT,CT>::IncrementProb(const std::vector<KT> &v, 
+					 const CT value) {
+  IncrementProb(v.size(), &v[0],value);
+  return;
 }
 
 /***********************************************************************
@@ -26,7 +38,7 @@ long MultiOrderCounts<KT, CT>::InitializeCountsFromText(FILE *in, Vocabulary *vo
   int sent_start_idx;
   KT idx;
   std::vector<KT> v;
-
+  
   if (grow_vocab) {
     if (sent_start_sym.size()) sent_start_idx=vocab->add_word(sent_start_sym);
     else sent_start_idx=-1;
@@ -53,8 +65,8 @@ long MultiOrderCounts<KT, CT>::InitializeCountsFromText(FILE *in, Vocabulary *vo
     if (v.size()<read_order) v.push_back(idx);
     else v.back()=idx;
 
-    IncrementCount(v,1);
-    //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %d\n", 1);
+    IncrementCount(v, (CT) 1);
+    //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %f\n", (CT) 1);
 
     if (v.size()==read_order) 
       for (int j=0;j<read_order-1;j++) 
@@ -88,6 +100,87 @@ long MultiOrderCounts<KT, CT>::InitializeCountsFromStorage(Storage_t<KT, CT> *da
   }
   return(num_read);
 }
+/**
+ * The function below assumes it will be called after the
+ * counts from the text have been read in and populated.
+**/
+
+template <typename KT, typename CT>
+long MultiOrderCounts<KT, CT>::InitializeProbsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym) {
+  char charbuf[MAX_WLEN+1];
+  long num_read=0;
+  int sent_start_idx;
+  KT idx;
+  std::vector<KT> v;
+  TreeGram::Gram gr;
+  CT prob= 0.0, den;
+  //fprintf(stderr,"Order %i\n", read_order);
+
+  if (grow_vocab) {
+    if (sent_start_sym.size()) sent_start_idx=vocab->add_word(sent_start_sym);
+    else sent_start_idx=-1;
+    vocabsize=64000;
+  } else {
+    vocabsize=vocab->num_words();
+    if (!sent_start_sym.size()) sent_start_idx=-1;
+    else if (!(sent_start_idx=vocab->word_index(sent_start_sym))) {
+      fprintf(stderr,"No sentence start symbol %s in vocabulary, exit.\n", sent_start_sym.c_str());
+      exit(-1);
+    }
+  }
+
+  while (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)!=EOF) {
+    //if (num_read % 1000000 == 0) fprintf(stderr,"Read %lld words\n",num_read);
+    if (grow_vocab) idx=vocab->add_word(charbuf);
+    else idx=vocab->word_index(charbuf);
+
+    //fprintf(stderr, "%s ",charbuf);
+    
+    if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf) == EOF) {
+      fprintf(stderr,"Expected a logprob after the word %s", charbuf);
+      exit(-1);
+    }
+
+    //fprintf(stderr,"Word %s = %d\n", charbuf, idx);
+
+    if (idx==sent_start_idx) v.clear();
+
+    if (v.size()<read_order) { 
+      v.push_back(idx); 
+    }
+    else v.back()=idx;
+
+    if (v.size()==read_order) {
+      
+      if (this->average) den=this->GetCount(v);
+      else {
+        if (read_order == 1) den=m_uni_counts_den;
+        else den=this->GetCount(read_order-1, &v[1]);
+      }
+      prob = exp(atof(charbuf))/(float) den;
+      bool flag=false;
+      for (int i=1;i<read_order;i++) {
+        if (v[i]==sent_start_idx) {
+          flag=true;
+        }
+      }
+      if (!flag) this->IncrementBackoffDen(read_order,&v[0],prob);
+      this->IncrementProb(v, prob);
+      
+      //fprintf(stderr, "%s %f\n",charbuf,prob);
+    }
+    //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %d\n", 1);
+
+    if (v.size()==read_order) 
+      for (int j=0;j<read_order-1;j++) 
+	v[j]=v[j+1];
+    
+    num_read++;
+  }
+  fprintf(stderr,"Finished reading %ld words.\n", num_read);
+
+  return(num_read);
+}
 
 template <typename KT, typename CT>
 CT MultiOrderCounts<KT, CT>::Increment_wo_del(
@@ -97,6 +190,19 @@ CT MultiOrderCounts<KT, CT>::Increment_wo_del(
   CT *valp = (CT *) &(m->data[idx*m->size_of_entry]);
   *valp+=value;
   return(*valp);
+}
+
+template <typename KT, typename CT>
+void MultiOrderCounts<KT, CT>::SetProb(const int order, const KT *v, 
+					  CT value) {
+  allocate_matrices_probs(order);
+  m_probs[order]->setvalue(v,value);
+}
+
+template <typename KT, typename CT>
+float MultiOrderCounts<KT, CT>::GetProb(const int order, const KT *v) {
+  if (order >= m_probs.size()) return(0);
+  return(m_probs[order]->getvalue(v));
 }
 
 template <typename KT, typename CT>
@@ -117,6 +223,13 @@ CT MultiOrderCounts<KT, CT>::IncrementCount(const int order, const KT *v,
 					    const CT value) {
   allocate_matrices_counts(order);
   return(Increment_wo_del(m_counts[order]->m, v, value));
+}
+
+template <typename KT, typename CT>
+void MultiOrderCounts<KT, CT>::IncrementProb(const int order, const KT *v, 
+					    const CT value) {
+  allocate_matrices_probs(order);
+  Increment_wo_del(m_probs[order]->m, v, value);
 }
 
 template <typename KT, typename CT>
@@ -149,6 +262,10 @@ MultiOrderCounts<KT, CT>::~MultiOrderCounts() {
     if (std::find(m_do_not_delete.begin(),m_do_not_delete.end(),i) 
 	== m_do_not_delete.end()) // The matrix was internally malloced
       delete m_counts[i];
+  for (int i=1;i<m_probs.size();i++)
+    delete m_probs[i];
+  for (int i=1;i<m_probs_den.size();i++)
+    delete m_probs_den[i];
   
 }
 
@@ -174,6 +291,31 @@ void MultiOrderCounts<KT, CT>::allocate_matrices_counts(int o) {
     if (i>4 && order_size(i-1)>1) real_hashsize=order_size(i-1)*2+1;
     //if (i>2) fprintf(stderr,"Allocating counts matrices for order %d, size %d (prev size %d, vocabsize %d)\n", i, real_hashsize, order_size(i-1), this->vocabsize);
     m_counts[i]= new sikMatrix<KT, CT>(i,real_hashsize,0);
+  }
+}
+
+template <typename KT, typename CT>
+void MultiOrderCounts<KT, CT>::allocate_matrices_probs(int o) {
+  if (o<m_probs.size()) return;
+  if (vocabsize==0) {
+    fprintf(stderr,"MultiOrderCounts: Please set a reasonable vocabulary size. Exit.\n");
+    exit(-1);
+  }
+  if (hashsize==0) hashsize=600000;
+  indextype real_hashsize;
+  
+  int old_size=m_probs.size();
+  m_probs.resize(o+1,NULL);
+  for (int i=std::max(1,old_size);i<m_probs.size();i++) {
+    assert(m_probs[i]==NULL);
+    std::vector<KT> v(i,(KT) vocabsize);
+    // Some heuristics to try to get reasonable hash sizes. Not too well tested
+    real_hashsize=std::min(std::max(1000,(indextype) (vocabsize*pow((float) i,3))),hashsize);
+    //fprintf(stderr,"min(%d*%d^3=%.0f,", vocabsize,i, vocabsize*pow((float) i, 3));
+    //fprintf(stderr,"%d)\n", (int) hashsize);
+    if (i>4 && order_size(i-1)>1) real_hashsize=order_size(i-1)*2+1;
+    //if (i>2) fprintf(stderr,"Allocating counts matrices for order %d, size %d (prev size %d, vocabsize %d)\n", i, real_hashsize, order_size(i-1), this->vocabsize);
+    m_probs[i]= new sikMatrix<KT, float>(i,real_hashsize,0);
   }
 }
 
@@ -259,6 +401,47 @@ void MultiOrderCounts_Generic_BOT<KT, CT, BOT>::WriteCounts(FILE *out) {
 }
 
 template <typename KT, typename CT, typename BOT> 
+void MultiOrderCounts_Generic_BOT<KT, CT, BOT>::WriteProbs(FILE *out) {
+  std::vector<KT> v;
+  CT val, prob;
+  BOT bo_val;
+  
+  fprintf(out,"\\vocabsize %d\n", MultiOrderCounts<KT, CT>::vocabsize);
+  for (int o=1; o<=order(); o++) {
+    v.resize(o);
+    fprintf(out,"\\%d-gram counts\n",o);
+    this->StepCountsOrder(true, o, &v[0], &val);
+    while (this->StepCountsOrder(false, o, &v[0], &val)) {
+      if (val==0) continue;
+      print_indices(out, v);
+      fprintf(out," ");
+      prob=this->GetProb(o, &v[0]);
+      this->write_prob(out, prob);
+      fprintf(out,"\n");
+      //fprintf(out, "%.12f %.12f\n", prob ,val);
+    }
+    
+    v.resize(o-1);
+    fprintf(out, "\n\\%d-gram backoffs\n",o);
+    if (o==1) {
+      fprintf(out, "[ ] ");
+      WriteCounts_BOhelper(out, &m_uni_bo);
+      fprintf(out, "\n\n");
+      continue;
+    }
+    StepBackoffsOrder(true, o, &v[0], &bo_val);
+    while (StepBackoffsOrder(false, o, &v[0], &bo_val)) {
+      if (bo_val.den==0) continue;
+      print_indices(out, v);
+      fprintf(out," ");
+      WriteCounts_BOhelper(out, &bo_val);
+      fprintf(out,"\n");
+    }
+    fprintf(out,"\n");
+  }
+}
+
+template <typename KT, typename CT, typename BOT> 
 void MultiOrderCounts_Generic_BOT<KT, CT, BOT>::ReadCounts(FILE *in) {
   int order=-1;
   std::string line;
@@ -312,7 +495,7 @@ void MultiOrderCounts_Generic_BOT<KT, CT, BOT>::ReadCounts(FILE *in) {
 	//fprintf(stderr,"Putting %s=%d, %d\n", vec[i].c_str(), v[i-1], ok);
       }
       this->read_num(&val, &vec[order+2], &ok);
-      //fprintf(stderr,"Val %s=%d (%d)\n", vec[order+2].c_str(), val, ok);
+      //fprintf(stderr,"Val %s=%f (%d)\n", vec[order+2].c_str(), val, ok);
       if (!ok) {
 	fprintf(stderr,"Error reading line %ld:\n%s\nExit2.\n", lineno, line.c_str());
 	exit(-1);

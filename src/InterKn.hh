@@ -30,6 +30,7 @@ public:
   virtual void counts2lm(TreeGram *lm)=0;
   virtual void counts2asciilm(FILE *out)=0;
   virtual void counts2ascii(FILE *out)=0; // For debugging
+  virtual void probs2ascii(FILE *out)=0;
   
   inline int order() {return m_order;}
   inline void use_ehist_pruning(int x) { m_ehist_estimate=x;}
@@ -37,6 +38,8 @@ public:
   
   virtual void estimate_bo_counts(bool zerosent=false)=0;
   virtual void estimate_nzer_counts()=0;
+  virtual void average_probs()=0;
+  virtual void normalize_probs()=0;
   virtual float evaluate(std::vector<float> &discounts)=0;
   virtual void find_coeffs(float brak, float precision, float lin_precision)=0;
   virtual void init_disc(float x)=0;
@@ -71,6 +74,8 @@ public:
   
   bool zeroprobgrams;
   bool prune_with_real_counts;
+  std::string read_prob;
+  bool average;
   
   virtual int debug() {return(-40);}
   virtual void print_matrix(int o) {}
@@ -130,10 +135,13 @@ public:
     Storage_t<KT, CT> *datastorage, const indextype hashsize, 
     const std::string &sent_boundary);
   virtual void estimate_bo_counts(bool zerosent=false);
+  virtual void average_probs();
+  virtual void normalize_probs();
   void estimate_bo_counts_absolute_discounting(bool zerosent=false);
   void counts2lm(TreeGram *lm);
   virtual void counts2asciilm(FILE *out);
   void counts2ascii(FILE *out); //For debugging
+  void probs2ascii(FILE *out);
   float evaluate(std::vector<float> &discounts);
   
   double tableprob(std::vector<KT> &indices);
@@ -167,6 +175,8 @@ public:
   virtual void add_counts_for_backoffs() = 0;
   virtual void remove_sent_start_prob() {assert(false);}
   inline void write_counts(FILE *f) {moc->WriteCounts(f);}
+
+  virtual void prune_model(float treshold, bool recorrect_kn, Storage_t<KT, CT> *real_counts)=0;
   
 protected:
   inline float kn_prob(const int order, const KT *i);
@@ -186,7 +196,6 @@ protected:
   //virtual inline sikMatrix<KT, CT> *get_ct_matrix(int o, CT *foo, DT *bar) {assert(false);return(0);}
   template <typename BOT> void add_counts_for_backoffs_fbase(BOT *);
   template <typename BOT> void add_zeroprob_grams_fbase(BOT *);
-  virtual void prune_model(float treshold, bool recorrect_kn, Storage_t<KT, CT> *real_counts)=0;
   template <typename BOT> void prune_model_fbase(float treshold, bool recorrect_kn, Storage_t<KT, CT> *real_counts, BOT *dummy);
   virtual void prune_gram(std::vector<KT> &v, CT num, bool recorrect_kn, MultiOrderCounts_counter_types::bo_c<CT> *dummy) {assert(false);}
   virtual void prune_gram(std::vector<KT> &v, CT num, bool recorrect_kn, MultiOrderCounts_counter_types::bo_3c<CT> *dummy) {assert(false);}
@@ -200,7 +209,7 @@ public:
     const std::string optisource,
     const int read_counts, const int order, const int ndrop, const int nfirst,
     Storage_t<KT, ICT> *datastorage, const std::string prunedata_name,  
-    const std::string sent_boundary,
+    const std::string sent_boundary, const std::string read_prob, const bool average,
     const indextype hashsize=3000000);
   virtual inline void init_disc(float x);
   virtual void estimate_nzer_counts();
@@ -240,6 +249,8 @@ protected:
   }
 };
 
+#if DO_NOT_USE_INTERKN_WITH_FLOATS
+ 
 template <typename KT, typename ICT>
 class InterKn_int_disc3: public InterKn_t<KT, ICT> {
 public:
@@ -303,6 +314,8 @@ public:
     }
   }
 };
+
+#endif
 
 #include "InterKn_tmpl.hh"
 #endif

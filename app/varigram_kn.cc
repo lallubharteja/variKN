@@ -31,7 +31,9 @@ int main(int argc, char **argv) {
     ('O', "cutoffs=\"val1 val2 ... valN\"", "arg", "", "Use the specified cutoffs. The last value is used for all higher order n-grams.")
     ('N', "discard_unks", "", "", "Remove n-grams containing OOV words.")
     ('L', "longint", "", "", "Store counts in a long int type. Needed for big training sets.")
-    ('F',"forcedisc=FLOAT","arg","-1.0", "Set all discounts to the given value.")    ;
+    ('V',"numngramstarget=INT","arg","0","Scale model down until there are less than V*1.03 ngrams in the model")
+    ('F',"forcedisc=FLOAT","arg","-1.0", "Set all discounts to the given value.")
+    ('P',"cdouble","","", "Store counts in double type. Needed when reading in probabilities as counts");
   
   config.parse(argc,argv,2);
   
@@ -45,6 +47,7 @@ int main(int argc, char **argv) {
   const std::string optiname(config["opti"].get_str());
   const float dscale=std::max(0.00001, config["dscale"].get_double());
   const float dscale2=config["dscale2"].get_double();
+  const int ngram_prune_target=config["numngramstarget"].get_int();
   const bool smallvocab=config["smallvocab"].specified;
   const bool smallmem=config["smallmem"].specified;
   const bool zpg=config["dontaddzpg"].specified;
@@ -55,6 +58,7 @@ int main(int argc, char **argv) {
   const bool discard_unks=config["discard_unks"].specified;
   const bool longint=config["longint"].specified;
   const float force_disc=config["forcedisc"].get_double();
+  const bool cdouble=config["cdouble"].specified;
 
   std::string vocabname;
   if (config["vocabin"].specified) vocabname=config["vocabin"].get_str();
@@ -80,15 +84,18 @@ int main(int argc, char **argv) {
   io::Stream::verbose=false;
 
   Varigram *vg;
-  if (!smallvocab) 
+  if (!smallvocab)
+    //if (cdouble) vg=new Varigram_t<int, float>(use_3nzer, absolute);
     if (!longint) vg=new Varigram_t<int, int>(use_3nzer, absolute); 
     else vg=new Varigram_t<int, long>(use_3nzer, absolute); 
-  else 
+  else
+    //if (cdouble) vg=new Varigram_t<unsigned short, float>(use_3nzer, absolute);
     if (!longint) vg=new Varigram_t<unsigned short, int>(use_3nzer, absolute); 
     else vg=new Varigram_t<unsigned short, long>(use_3nzer, absolute); 
-
+  
   if (dscale>0.0) vg->set_datacost_scale(dscale);
   if (dscale2>0.0) vg->set_datacost_scale2(dscale2); // use also pruning
+  if (ngram_prune_target > 0) vg->set_ngram_prune_target(ngram_prune_target);
   if (max_order) vg->set_max_order(max_order);
 
   try {
