@@ -241,7 +241,9 @@ float InterKn_int_disc<KT, ICT>::kn_prob(const int order, const KT *i, const ICT
   const ICT den=this->moc->GetBackoffDen(order,i);
   if (den<=0) return(prob);
   prob+=(num-m_discount[order])/den;
-  //fprintf(stderr,"knp: (%ld - %.4f) / %ld = %f -> %f\n", (long) num, m_discount[order], (long) den, (num-m_discount[order])/den, prob);
+  //if (prob > 1.0) {
+  //  fprintf(stderr,"knp: (%f - %.6f) / %f = %f -> %f\n", (float) num, m_discount[order], (float) den, (num-m_discount[order])/den, prob);
+  //}
   return prob;
 }
 
@@ -328,22 +330,20 @@ create_model(float prunetreshold) {
   }
 
   find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
-  if (this->read_prob.empty()) {
-    //fprintf(stderr,"Worlds are colliding\n");
-    if (prunetreshold>0.0 || this->cutoffs.size() || this->discard_ngrams_with_unk) {
-      if (!this->prune_with_real_counts) {
-        prune_model(prunetreshold, 1,(Storage_t<KT, CT> *) NULL);
-      } else {
-        io::Stream::verbose=true;
-        io::Stream in(this->m_prunedata_name, "r", io::REOPENABLE);
-        Storage_t<KT, CT> real_counts;
-        real_counts.read(in.file, this->vocab);
-        fprintf(stderr,"real counts size %ld\n", (long) real_counts.size());
-        prune_model(prunetreshold, 1, &real_counts);
-      }
-    } 
-    find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
-  }
+  //fprintf(stderr,"Worlds are colliding\n");
+  if (prunetreshold>0.0 || this->cutoffs.size() || this->discard_ngrams_with_unk) {
+    if (!this->prune_with_real_counts) {
+      prune_model(prunetreshold, 1,(Storage_t<KT, CT> *) NULL);
+    } else {
+      io::Stream::verbose=true;
+      io::Stream in(this->m_prunedata_name, "r", io::REOPENABLE);
+      Storage_t<KT, CT> real_counts;
+      real_counts.read(in.file, this->vocab);
+      fprintf(stderr,"real counts size %ld\n", (long) real_counts.size());
+      prune_model(prunetreshold, 1, &real_counts);
+    }
+  } 
+  find_coeffs(-0.1*m_ori_treshold,1e-1,5e-2);
 }
 
 template <typename KT, typename CT> template <typename BOT> 
@@ -858,7 +858,7 @@ void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
       prob=kn_prob(o,&v[0],num);
       coeff=kn_coeff(o+1,&v[0]);
       for (int i=0;i<o;i++) gr[i]=v[i];
-      //fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
+      fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
       gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
       breaker=false;
     }
