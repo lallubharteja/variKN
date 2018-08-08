@@ -44,7 +44,7 @@ public:
 private:
   std::vector<std::map<T, ICT> > m_lists;
   std::vector<std::map<T, ICT> > m_probs;
-  std::vector<std::vector<T> > m_probs2;
+  std::vector<std::vector<ICT> > m_probs2;
   typename std::map<T, ICT>::iterator m_cur_vec_idx;
   typename std::map<T, ICT>::iterator m_cur_vec_prob;
   sikMatrix<T, ICT> *m_refmat;

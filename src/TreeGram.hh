@@ -140,6 +140,7 @@ public:
   void convert_to_backoff();
 
 private:
+  void add_gram_which_are_not_unigrams(const Gram &gram, float log_prob, float back_off);
   int binary_search(int word, int first, int last);
   void print_gram(FILE *file, const Gram &gram);
   void find_path(const Gram &gram);

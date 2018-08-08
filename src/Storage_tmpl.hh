@@ -103,15 +103,16 @@ void Storage_t<T, ICT>::initialize_fast_search_lists_probs(
   m_lists.clear();
   m_probs.clear();
   this->m_lists2.clear();
-  m_probs2.clear();
+  this->m_probs2.clear();
   
   m_last_init_mapped=(m_refmat->dims<=2);
   if (m_last_init_mapped) {
     m_lists.resize(m_refmat->num_entries());
     m_probs.resize(m_refmat->num_entries()); 
   } else {
+    fprintf(stderr,"initialize_fast_search_lists_probs: %d\n", m_refmat->num_entries());
     this->m_lists2.resize(m_refmat->num_entries());
-    m_probs2.resize(m_refmat->num_entries());
+    this->m_probs2.resize(m_refmat->num_entries());
   }
   std::vector<T> v;
   size_t i;
@@ -343,7 +344,7 @@ void Storage_t<T, ICT>::fast_search_next(std::vector<T> *v, int *ridx, ICT *rval
   } else {
     *ridx=this->m_lists2[m_cur_vec][this->m_cur_vec_idx2];
     *rval=1;
-    *rprob=m_probs2[m_cur_vec][this->m_cur_vec_idx2++];
+    *rprob=this->m_probs2[m_cur_vec][this->m_cur_vec_idx2++];
 
   }
   return ;

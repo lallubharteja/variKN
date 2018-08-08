@@ -26,32 +26,13 @@ ProbsLM_impl<KT, ICT>::ProbsLM_impl(
 		     hashsize, sent_boundary);
 }
 
-/*template <typename KT, typename ICT>
-void ProbsLM_impl<KT, ICT>::estimate_nzer_counts() {
-  std::vector<KT> v(this->m_order);
-  ICT value;
-
-  for (int o=1;o<=this->m_order;o++) {
-    this->mop->StepCountsOrder(true, o, &v[0], &value);
-    while (this->mop->StepCountsOrder(false, o, &v[0], &value)) {
-      if (value==0) continue;
-      this->mop->IncrementBackoffNzer(o,&v[0], (ICT) 1); 
-    }
-  }
-}*/
-
-//TODO: change the following function to adapt to new class
 template <typename KT, typename ICT> void ProbsLM_impl<KT, ICT>::
 remove_sent_start_prob_fbase(ICT *dummy) {
   std::vector<KT> tmp(1, (KT) this->m_sent_boundary);
   const ICT value=this->mop->GetCount(tmp);
   this->mop->IncrementCount(tmp,-value);
-  //const ICT prob=this->mop->GetProb(tmp);
-  //this->mop->IncrementProb(tmp,-prob);
-  //this->mop->IncrementBackoff(1,NULL,-prob);
 }
 
-//TODO: change the following function to adapt to new class
 template <typename KT, typename CT>
 void ProbsLM_t<KT, CT>::add_zeroprob_grams_fbase(CT *dummy) {
   std::vector<KT> v;
@@ -192,7 +173,7 @@ void ProbsLM_t<KT, ICT>::init_probs(const int order, Storage_t<KT, ICT> *datasto
     if (!datastorage)
       mop->InitializeProbsFromText(probin.file, &(this->vocab), false, o, sent_start_symbol);
     else 
-      mop->InitializeCountsFromStorage(datastorage, order, sent_start_idx);
+      mop->InitializeProbsFromStorage(datastorage, order, sent_start_idx);
     probin.close();
   }
 }
@@ -247,8 +228,6 @@ void ProbsLM_t<KT, CT>::estimate_bo_counts() {
     for (int o=this->m_order;o>=1;o--) {
       mop->StepCountsOrder(true,o,&v[0],&value);
       while (mop->StepCountsOrder(false,o,&v[0],&value)) {
-        //prob=mop->GetProb(o,&v[0]);
-	//mop->IncrementBackoffDen(o,&v[0],prob);
 	if (o>1) mop->IncrementCount(o-1,&v[1],value);
         else mop->m_uni_counts_den += value;
       }
@@ -256,22 +235,11 @@ void ProbsLM_t<KT, CT>::estimate_bo_counts() {
     return;
   } 
   
-  // Ugly way of doing things...
   for (int o=this->m_order;o>=1;o--) {
     mop->StepCountsOrder(true,o,&v[0],&value);
     while (mop->StepCountsOrder(false,o,&v[0],&value)) {
-      //prob=mop->GetProb(o,&v[0]);
-      /*bool flag=false;
-      for (int i=1;i<o;i++) {
-	if (v[i]==this->m_sent_boundary) {
-	  mop->DeleteCurrentST(o);
-	  flag=true;
-	  break;
-	}
-      }*/
       if (o>1) mop->IncrementCount(o-1,&v[1],value);
       else mop->m_uni_counts_den += value;
-      //if (!flag) mop->IncrementBackoffDen(o,&v[0],prob);
     }
   }
 }
@@ -316,30 +284,22 @@ void ProbsLM_t<KT, CT>::probs2ascii(FILE *out) {
 }
 
 template <typename KT, typename CT>
-void ProbsLM_t<KT, CT>::counts2lm(TreeGram *lm) {
+void ProbsLM_t<KT, CT>::counts2lm(FILE *out) {
   /*********************************************/
   /* Put smoothed model into ngram            */
   /*******************************************/
 
-  //remove_zeroprob_grams();
-  //add_zeroprob_grams();
-  //add_counts_for_backoffs();
-
-  lm->set_type(TreeGram::INTERPOLATED);
   TreeGram::Gram gr;
   float prob,coeff;
   std::vector<KT> v(1);
   CT num;
+  std::string field_separator=" ";
 
-  this->vocab.copy_vocab_to(*lm);
-
-  indextype nodes=0;
-  for (int o=1;o<=this->m_order;o++) {
-    //fprintf(stderr,"O%d siex %d\n", o, mop->order_size(o));
-    nodes += mop->order_size(o);
+  // Header containing counts for each order
+  fprintf(out, "\\data\\\n");
+  for (int i = 1; i <= this->m_order; i++) {
+    if (mop->order_size(i)) fprintf(out, "ngram %d=%d\n", i, mop->order_size(i));
   }
-  lm->reserve_nodes(nodes);
-  //fprintf(stderr,"Reserved %d nodes\n", nodes);
 
   for (int o=1;o<=this->m_order;o++) {
     //fprintf(stderr,"Adding o %d\n",o);
@@ -352,20 +312,34 @@ void ProbsLM_t<KT, CT>::counts2lm(TreeGram *lm) {
       prob=text_prob(o,&v[0]);
       coeff=text_coeff(o+1,&v[0]);
       for (int i=0;i<o;i++) gr[i]=v[i];
-      fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
+      //fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
       gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
       breaker=false;
     }
     if (breaker) break;
     gramsorter.sort();
+
+    fprintf(out, "\n\\%d-grams:\n",o);
+    
     for (size_t i = 0; i < gramsorter.num_grams(); i++) {
       GramSorter::Data data = gramsorter.data(i);
       gr = gramsorter.gram(i);
-      fprintf(stderr,"adding ");print_indices(stderr, gr);fprintf(stderr," %.4f %.4f\n", data.log_prob, data.back_off);
-      lm->add_gram(gr, data.log_prob, data.back_off);
-    }
+      
+      fprintf(out, "%g", data.log_prob);
+      fprintf(out, "%s%s", field_separator.c_str(),
+              (this->vocab.word(gr[0])).c_str());
+      for (int j = 1; j < o; j++) {
+        fprintf(out, " %s", (this->vocab.word(gr[j])).c_str());
+      }
+      //fprintf(stderr,"adding ");print_indices(stderr, gr);fprintf(stderr," %.4f %.4f\n", data.log_prob, data.back_off);
+      
+      if (data.back_off != 0.0)
+        fprintf(out, "%s%g\n", field_separator.c_str(), data.back_off);
+      else
+        fprintf(out, "\n");
+    } 
   }
-  lm->finalize();
+  fprintf(out, "\n\\end\\\n");
 }
 
 template <typename KT, typename CT>
@@ -378,11 +352,11 @@ CT ProbsLM_t<KT, CT>::tableprob(std::vector<KT> &indices) {
   for (int n=1;n<=looptill;n++) {
     iptr=&(indices.back())-n+1;
     if (n>1) {
-      //fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, kn_coeff(n, iptr));
+      //fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, text_coeff(n, iptr));
       prob*=text_coeff(n,iptr);
       //fprintf(stderr,"%.4f\n", prob);
     }
-    //fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, kn_prob(n, iptr));
+    //fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, text_prob(n, iptr));
     prob += text_prob(n,iptr);
     //fprintf(stderr,"%.4f\n",prob);
   }

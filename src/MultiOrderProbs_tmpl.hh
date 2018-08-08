@@ -208,9 +208,9 @@ long MultiOrderProbs<KT, CT>::InitializeProbsFromStorage(Storage_t<KT, CT> *data
       if (read_order == 1) den=m_uni_counts_den;
       else den=this->GetCount(read_order-1, &v[0]);
       //}
-      prob = exp(data->prob(di))/(CT) den;
+      prob = data->prob(di)/(CT) den;
 
-      //fprintf(stderr,"%f / %f = %f\n", exp(atof(charbuf)), den, prob);
+      //fprintf(stderr,"%f / %f = %f\n", data->prob(di), den, prob);
       bool flag=false;
       for (int i=1;i<read_order;i++) {
         if (v[i]==sent_start_idx) {
@@ -220,7 +220,7 @@ long MultiOrderProbs<KT, CT>::InitializeProbsFromStorage(Storage_t<KT, CT> *data
       if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
       this->IncrementProb(v, prob);
       
-      //fprintf(stderr, "%s %f\n",charbuf,prob);
+      //fprintf(stderr, "%f %f\n",data->prob(di),prob);
     }
     //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %d\n", 1);
 
@@ -574,13 +574,6 @@ void MultiOrderProbs<KT, CT>::GetBackoff(const int order,
   }
   memcpy(value,&m_uni_bo,sizeof(CT));
 }
-
-
-/*template <typename KT, typename CT>
-void MultiOrderProbs<KT, CT, CT>::IncrementBackoffCacheDen(
-  const int order, const KT *v, const CT value){
-  IncrementBackoffCache(order, v, value);
-}*/
 
 template <typename KT, typename CT>
 void MultiOrderProbs<KT, CT>::

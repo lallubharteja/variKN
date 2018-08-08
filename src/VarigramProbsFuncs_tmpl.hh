@@ -222,7 +222,7 @@ bool VarigramProbs_t<KT, ICT>::reestimate_with_history(std::vector<KT> &v) {
 
   double delta=delta1+delta2;
 
-  //fprintf(stderr,"sizes %ld %ld\n", (long) m_new_c->size(), (long) origsize);
+  //fprintf(stderr,"sizes %ld %ld\n", (long) m_new_c.size(), (long) origsize);
   //fprintf(stderr,"scales %g %g\n", m_datacost_scale, m_problm->model_cost_scale);
   //fprintf(stderr,"delta %.1f+%.1f=%.1f",delta1,delta2,delta);
 
@@ -266,6 +266,7 @@ double VarigramProbs_t<KT, ICT>::modify_model(
     logprobdelta+=safelogprob(m_problm->tableprob(ind))*it->second;
     // ml safelogprob enables earlier pruning and makes things slightly 
     // faster
+    //fprintf(stderr,"prob %g ml_norm %g count %d\n", m_prob[it->first],  ml_norm, it->second);
     ml_safelogprob+=safelogprob(m_prob[it->first]* ml_norm)*it->second;
   }
 
@@ -314,40 +315,6 @@ double VarigramProbs_t<KT, ICT>::modify_model(
 }
 
 template <typename KT, typename ICT>
-void VarigramProbs_t<KT, ICT>::write(FILE *out, bool arpa) {
-  TreeGram t;
-  m_problm->counts2lm(&t);
-
-  if (!arpa) {
-    t.write(out,true);
-    return;
-  }
-  t.write(out);
+void VarigramProbs_t<KT, ICT>::write(FILE *out) {
+  m_problm->counts2lm(out);
 }
-
-/*
-template <typename KT, typename ICT>
-void VarigramProbs_t<KT, ICT>::get_unigram_counts(std::string &infilename, int ndrop, int nfirst, int *type){
-  io::Stream in(infilename,"r",io::REOPENABLE);
-  m_initial_ng->count(in.file, true); 
-  if (nfirst<=0) nfirst=10000000;
-  m_initial_ng->shrink(ndrop,nfirst);
-}
-
-template <typename KT, typename ICT>
-void VarigramProbs_t<KT, ICT>::get_unigram_counts(std::string &infilename, int ndrop, int nfirst, unsigned short *type){
-  io::Stream in;
-  in.open(infilename,"r",io::REOPENABLE);
-  NgramCounts_t<int, ICT> tmp_counts(1,0,500000);
-  tmp_counts.count(in.file, true);
-  if (nfirst<=0 || nfirst>64000) nfirst=64000;
-  tmp_counts.shrink(ndrop,nfirst);
-  in.close();
-  io::Stream::verbose=false;
-
-  tmp_counts.vocab->copy_vocab_to(*(m_initial_ng->vocab));
-  in.open(infilename,"r",io::REOPENABLE);
-  m_initial_ng->count(in.file, false); 
-  in.close();
-}
-*/

@@ -74,24 +74,12 @@ int main(int argc, char **argv) {
     else fprintf(stderr,"large vocabulary and ");
     fprintf(stderr,"absolute discounting.\n");
 
-    //abs->cutoffs=cutoffs;
-    //abs->discard_cutoffs=discard_cutoffs;
-    //////abs->discard_ngrams_with_unk=discard_unks;
     problm->create_model(std::max((float) 0.0,prunetreshold));
     
     //Write out the arpa
     io::Stream out(arpaout, "w");
-    
-    problm->counts2lm(&lm);
-    //problm->probs2ascii(out.file); //For Debugging
-    
-    lm.write(out.file,false);
+    problm->counts2lm(out.file);
     out.close();
-
-    /*if (countsout.size()) {
-      io::Stream out(countsout, "w");
-      abs->probs2ascii(out.file);
-    }*/
     
   }
   catch (std::exception &e) {

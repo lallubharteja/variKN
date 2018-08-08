@@ -247,22 +247,6 @@ float InterKn_int_disc<KT, ICT>::kn_prob(const int order, const KT *i, const ICT
   return prob;
 }
 
-/*template <typename KT, typename ICT>
-float InterKn_int_disc<KT, ICT>::file_prob(const int order, const KT *i)
-{
-  float prob=0;
-  if (order==1) {
-    // Unigram smoothing 
-    prob = (m_discount[1]/((float) this->vocab.num_words());
-    //fprintf(stderr,"Unigram smooth %.4f\n", prob);
-  }
-  
-  prob+=(this->moc->GetProb(order,i) - m_discount[order]/(float) this->moc->GetBackoffDen(order, i));
-  //fprintf(stderr,"knp: (%ld - %.4f) / %ld = %f -> %f\n", (long) num, m_discount[order], (long) den, (num-m_discount[order])/den, prob);
-  return prob;
-}
-*/
-
 #if DO_NOT_USE_INTERKN_WITH_FLOATS
 template <typename KT, typename ICT>
 float InterKn_int_disc3<KT, ICT>::kn_prob(const int order, const KT *i, const ICT num){
@@ -980,20 +964,20 @@ double InterKn_t<KT, CT>::tableprob(std::vector<KT> &indices) {
   double prob=0.0;
   KT *iptr;
 
-  //fprintf(stderr,"looking ");print_indices(stderr,indices);fprintf(stderr,"\n");
+  fprintf(stderr,"looking ");print_indices(stderr,indices);fprintf(stderr,"\n");
   const int looptill=std::min(indices.size(),(size_t) this->m_order);
   for (int n=1;n<=looptill;n++) {
     iptr=&(indices.back())-n+1;
     if (n>1) {
-      //fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, kn_coeff(n, iptr));
+      fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, kn_coeff(n, iptr));
       prob*=kn_coeff(n,iptr);
-      //fprintf(stderr,"%.4f\n", prob);
+      fprintf(stderr,"%.4f\n", prob);
     }
-    //fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, kn_prob(n, iptr));
+    fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, kn_prob(n, iptr));
     prob += kn_prob(n,iptr);
-    //fprintf(stderr,"%.4f\n",prob);
+    fprintf(stderr,"%.4f\n",prob);
   }
-  //fprintf(stderr,"vc: return %e\n",prob);
+  fprintf(stderr,"vc: return %e\n",prob);
   assert(prob>=-1e-03 && prob<=1.001);
   return(prob);
 }
@@ -1165,19 +1149,4 @@ void InterKn_t<KT, CT>::normalize_probs() {
     this->moc->SetProb(o,&v[0],prob /norm);
     check_prob += prob/norm;
   }
-//  fprintf(stderr,"Probability sum for order %i %f\n", o, check_prob);
-
-//  for (o=2;o<=this->m_order;o++) {
-//    this->moc->StepCountsOrder(true, o, &v[0], &value);
-//    while (this->moc->StepCountsOrder(false, o, &v[0], &value)) {
-//      for (int i=0;i<o;i++)
-//        fprintf(stderr," %s",this->vocab.word(v[i]).c_str());
-//      if (value==0){
-//        fprintf(stderr, "Warning: One of the counts was zero");
-//      }
-//      prob = this->moc->GetProb(o,&v[0]);
-//      fprintf(stderr," %f %li\n", prob, value);
-//      //this->moc->SetProb(o,&v[0],prob /((double) value));
-//    }
-//  }
 }

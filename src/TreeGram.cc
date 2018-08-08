@@ -202,12 +202,15 @@ TreeGram::find_path(const Gram &gram)
   int prev = -1;
   int order = 0;
   int index;
+  TreeGram::Gram gram_history;
+  gram_history.resize(gram.size() - 1);
 
   assert(gram.size() > 1);
 
   // The beginning of the path can be found quickly by using the index
   // stack.
   while (order < gram.size() - 1) {
+    gram_history[order] = gram[order];
     if (gram[order] != m_last_gram[order])
       break;
     order++;
@@ -229,9 +232,14 @@ TreeGram::find_path(const Gram &gram)
   while (order < gram.size()-1) {
     index = find_child(gram[order], prev);
     if (index < 0) {
-      fprintf(stderr, "prefix not found\n");
-      print_gram(stderr, gram);
-      exit(1);
+      fprintf(stderr, "find_path: warning, prefix not found\n");
+      //print_gram(stderr, gram);
+      
+      TreeGram::Gram prev_gram = m_last_gram;
+      add_gram_which_are_not_unigrams(gram_history, MINLOGPROB, 0);
+      m_last_gram = prev_gram;
+      index = find_child(gram[order], prev);
+      //exit(1);
     }
 
     m_insert_stack.push_back(index);
@@ -241,6 +249,7 @@ TreeGram::find_path(const Gram &gram)
 
     prev = index;
     order++;
+    if (order < gram.size()-1) gram_history[order] = gram[order];
   }
   //fprintf(stderr, "find path m_insert_stack4 ");
   //print_indices(stderr, m_insert_stack);
@@ -323,6 +332,46 @@ TreeGram::add_gram(const Gram &gram, float log_prob, float back_off, bool add_mi
   m_last_gram = gram;
   assert(m_order == m_last_gram.size());
 }
+
+void
+TreeGram::add_gram_which_are_not_unigrams(const Gram &gram, float log_prob, float back_off)
+{
+  if (m_nodes.empty()) {
+    fprintf(stderr, "TreeGram::add_gram(): "
+	    "nodes must be reserved before calling this function\n");
+    exit(1);
+  }
+
+  // Initialize new order count
+  if (gram.size() > m_order_count.size()) {
+    //fprintf(stderr,"init order %d\n", gram.size());
+    m_order_count.push_back(0);
+    m_order++;
+  }
+
+  // Update order counts, but only if we do not have UNK-unigram
+  if (gram.size() > 1 || gram[0] != 0)
+    m_order_count[gram.size()-1]++;
+
+  // Fill the insert_stack with the indices of the current gram up
+  // to n-1 words.
+  find_path(gram);
+
+  // Update the child range start of the parent node.
+  if (m_nodes[m_insert_stack.back()].child_index < 0) {
+    m_nodes[m_insert_stack.back()].child_index = m_nodes.size();
+  }
+  // Insert the new node.
+  m_nodes.push_back(Node(gram.back(), log_prob, back_off, -1));
+
+  // Update the child range end of the parent node.  Note, that this
+  // must be done after insertion, because in extreme case, we might
+  // update the inserted node.
+  m_nodes[m_insert_stack.back() + 1].child_index = m_nodes.size();
+  m_insert_stack.push_back(m_nodes.size() - 1);
+
+}
+
 
 void 
 TreeGram::write(FILE *file, bool binary, std::string field_separator) { 
@@ -866,15 +915,18 @@ void TreeGram::print_debuglist() {
 }
 
 void TreeGram::finalize(bool add_missing_unigrams) {
+  fprintf(stderr,"here3\n");
   while (add_missing_unigrams && ( m_nodes.size() < num_words()  )) {
     Gram g(1);
     g[0]=m_nodes.size();
     add_gram(g, MINLOGPROB, 0);
     m_last_gram = g;
+    fprintf(stderr,"here1\n");
   }
 
   if (m_nodes.back().child_index == -1) return;
   Node node;
+  fprintf(stderr,"here2\n");
   m_nodes.push_back(node);
 }
 

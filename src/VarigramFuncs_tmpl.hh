@@ -264,7 +264,7 @@ bool Varigram_t<KT, ICT>::reestimate_with_history(std::vector<KT> &v) {
   }
   
   if (m_new_c.size()==0) {
-    //fprintf(stderr,"No hits found\n");
+    fprintf(stderr,"No hits found\n");
     return(false);
   }
   
@@ -280,17 +280,17 @@ bool Varigram_t<KT, ICT>::reestimate_with_history(std::vector<KT> &v) {
 
   double delta=delta1+delta2;
 
-  //fprintf(stderr,"sizes %ld %ld\n", (long) m_new_c->size(), (long) origsize);
-  //fprintf(stderr,"scales %g %g\n", m_datacost_scale, m_kn->model_cost_scale);
-  //fprintf(stderr,"delta %.1f+%.1f=%.1f",delta1,delta2,delta);
+  fprintf(stderr,"sizes %ld %ld\n", (long) m_new_c.size(), (long) origsize);
+  fprintf(stderr,"scales %g %g\n", m_datacost_scale, m_kn->model_cost_scale);
+  fprintf(stderr,"delta %.1f+%.1f=%.1f",delta1,delta2,delta);
 
   //fprintf(stderr,"hiorder mod: ");
   //m_kn->print_matrix(v.size()+1);
   if (delta<0 /*&& delta1 < -10*m_datacost_scale*/) {
-    //fprintf(stderr,"\t Accepted.\n");
+    fprintf(stderr,"\t Accepted.\n");
     accepted=true; 
   } else {
-    //fprintf(stderr,"\tRejected.\n");
+    fprintf(stderr,"\tRejected.\n");
     m_kn->MocUndoCached();
     accepted=false;
   }
@@ -324,12 +324,13 @@ double Varigram_t<KT, ICT>::modify_model(
     logprobdelta+=safelogprob(m_kn->tableprob(ind))*it->second;
     // ml safelogprob enables earlier pruning and makes things slightly 
     // faster
+    fprintf(stderr,"count %d ml_norm %g\n", it->second, ml_norm);
     ml_safelogprob+=safelogprob(it->second *ml_norm)*it->second;
   }
 
   const long origsize=m_kn->num_grams();
   const long size=origsize+m.size();
-  //fprintf(stderr,"lpdelta %g + ml_safelogpro %g, +dscale1 %g *( mc %g + sdelta %zd + s1 %g-s2 %g\n", logprobdelta, -ml_safelogprob, m_datacost_scale, m_kn->model_cost_scale, m.size(), size*log2(size), origsize*log2(origsize));
+  fprintf(stderr,"lpdelta %g + ml_safelogpro %g, +dscale1 %g *( mc %g + sdelta %zd + s1 %g-s2 %g\n", logprobdelta, -ml_safelogprob, m_datacost_scale, m_kn->model_cost_scale, m.size(), size*log2(size), origsize*log2(origsize));
   if ((logprobdelta-ml_safelogprob)+m_datacost_scale*(
       m_kn->model_cost_scale*m.size()+ size*log2(size)-origsize*log2(origsize))
       >=0 ) 

@@ -24,19 +24,12 @@ public:
 			  std::string clhist, std::string readprob, 
 			  std::string vocabname="")=0;
   virtual void grow(int iter2_lim=1)=0;
-  //virtual void write_narpa(FILE *out)=0;
-  //virtual void write_debug_counts(FILE *out)=0;
-  //virtual void write_probs_as_counts(FILE *out)=0;
-  virtual void write(FILE *out, bool arpa)=0;
+  virtual void write(FILE *out)=0;
   virtual void set_clear_symbol(std::string s)=0;
-  //virtual void set_zeroprobgrams(bool)=0;
-  //virtual void set_cutoffs(std::vector<int> v)=0;
   virtual void set_discard_unks(bool x)=0;
-  //virtual void set_all_discounts(float x)=0;
-  //bool absolute;
   void write_vocab(FILE *out) {m_vocab->write(out);}
 
-  inline void write_file(std::string lmname, bool arpa) { io::Stream out(lmname, "w"); write(out.file, arpa); out.close(); }
+  inline void write_file(std::string lmname) { io::Stream out(lmname, "w"); write(out.file); out.close(); }
 
 protected:
   float m_datacost_scale;
@@ -63,11 +56,7 @@ public:
 		  std::string clhist, std::string readprob,
 		  std::string vocabname="");
   void grow(int iter2_lim=1);
-  //inline void write_narpa(FILE *out) {m_problm->counts2asciilm(out);}
-  //inline void write_debug_counts(FILE *out) {m_problm->counts2ascii(out);}
-  //inline void write_probs_as_counts(FILE *out) {m_problm->probs2ascii(out);}
-  //inline void set_zeroprobgrams(bool x) {m_problm->zeroprobgrams=x;}
-  void write(FILE *out, bool arpa);
+  void write(FILE *out);
 
   inline void set_clear_symbol(std::string s) {
     assert(m_problm);
@@ -78,16 +67,10 @@ public:
     }
     m_problm->set_sentence_boundary_symbol(s);
   }
-  /*void set_cutoffs(std::vector<int> v) {
-    m_problm->cutoffs=v;
-  }*/
   void set_discard_unks(bool x) {
     m_problm->discard_ngrams_with_unk=x;
   }
 
-  //void set_all_discounts(float x) {
-  //  m_problm->init_disc(x);
-  //}
 
 private:
   ProbsLM_t<KT, ICT> *m_problm;
@@ -96,12 +79,6 @@ private:
   bool reestimate_with_history(std::vector<KT> &history);
   double modify_model(std::map<KT, ICT> &new_c, std::map<KT, ICT> &new_prob, const std::vector<KT> &v, const float ml_norm);
   Storage_t<KT, ICT> *m_data;
-  //void get_unigram_counts(std::string &infilename, int ndrop, int nfirst, int *type);
-  //void get_unigram_counts(std::string &infilename, int ndrop, int nfirst, unsigned short *type);
-
-  //void printmatrix_bo(sikMatrix<KT, typename MultiOrderCounts<KT, ICT>::bo_3c> *m);
-  //void printmatrix_bo(sikMatrix<KT, typename MultiOrderCounts<KT, ICT>::bo_c> *m);
-
   void prune();
 };
 
