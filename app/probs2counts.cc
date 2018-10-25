@@ -63,9 +63,9 @@ int main(int argc, char **argv) {
 
     /* Parse the arguments, create the right kind of model*/
     if (!smallvocab) {
-      abs=new ProbsAbs_int_disc<int, float>(dataname, "", n, ss_sym, readprob, average, hashs);
+      abs=new ProbsAbs_int_disc<int, double>(dataname, "", n, ss_sym, readprob, average, hashs);
     } else {
-      abs=new ProbsAbs_int_disc<unsigned short, float>(dataname, "", n, ss_sym, readprob, average, hashs);
+      abs=new ProbsAbs_int_disc<unsigned short, double>(dataname, "", n, ss_sym, readprob, average, hashs);
     } 
     
     fprintf(stderr, "The model will use ");

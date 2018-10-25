@@ -22,7 +22,7 @@ public:
     m_data_name(dataname)
   {}
   virtual ~ProbsLM() {}
-  virtual void create_model(float prunetreshold=-1.0)=0;
+  virtual void create_model(double prunetreshold=-1.0)=0;
   virtual void counts2lm(FILE *out)=0;
   virtual void probs2ascii(FILE *out)=0;
   
@@ -47,9 +47,9 @@ public:
   }
   inline int get_sentence_boundary_symbol() {return(m_sent_boundary);}
   
-  virtual void set_threshold(float x) {assert(false);}
+  virtual void set_threshold(double x) {assert(false);}
   
-  typedef float disc;
+  typedef double disc;
  
   bool zeroprobgrams;
   std::string read_prob;
@@ -60,7 +60,7 @@ public:
   size_t input_data_size;
 
   bool discard_ngrams_with_unk;
-  float model_cost_scale;
+  double model_cost_scale;
 protected:
   int m_order;
   virtual inline void re_estimate_needed() {}
@@ -122,20 +122,20 @@ public:
     return(n_grams);
   }
   
-  void create_model(float prunetreshold);
+  void create_model(double prunetreshold);
   void remove_zeroprob_grams();
   virtual void remove_sent_start_prob() {assert(false);}
-  virtual void prune_model(float threshold, Storage_t<KT, CT> *real_counts)=0;
+  virtual void prune_model(double threshold, Storage_t<KT, CT> *real_counts)=0;
   CT tableprob(std::vector<KT> &indices);
   
 protected:
   virtual CT text_prob(const int order, const KT *i)=0;
   virtual CT text_coeff(const int order, const KT *i)=0;
 
-    sikMatrix<float, float> *m_eval_cache;
+    sikMatrix<double, double> *m_eval_cache;
   
   void add_zeroprob_grams_fbase(CT *);
-  void prune_model_fbase(float threshold, Storage_t<KT, CT> *real_counts);
+  void prune_model_fbase(double threshold, Storage_t<KT, CT> *real_counts);
   virtual void prune_gram(std::vector<KT> &v, CT num) {assert(false);}
 };
 
@@ -147,7 +147,7 @@ public:
     const int order, Storage_t<KT, ICT> *datastorage, 
     const std::string sent_boundary, const std::string read_prob, const bool average,
     const indextype hashsize=3000000);
-  virtual inline void prune_model(float threshold, Storage_t<KT, ICT> *real_counts) {
+  virtual inline void prune_model(double threshold, Storage_t<KT, ICT> *real_counts) {
     this->prune_model_fbase(threshold, real_counts);
   }
  

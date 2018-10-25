@@ -23,7 +23,7 @@ public:
   {}
   virtual ~ProbsAbs() {}
   //virtual void create_model(float prunetreshold=-1.0)=0;
-  virtual void probs2ascii(FILE *out)=0;
+  virtual void probs2ascii(FILE* out)=0;
   
   inline int order() {return m_order;}
   //inline void use_ehist_pruning(int x) { m_ehist_estimate=x;}
@@ -52,7 +52,7 @@ public:
   
   virtual void set_threshold(float x) {assert(false);}
   
-  typedef float disc;
+  typedef double disc;
  
   bool zeroprobgrams;
   std::string read_prob;
@@ -71,7 +71,7 @@ public:
   }*/
   //bool discard_cutoffs;
   bool discard_ngrams_with_unk;
-  float model_cost_scale;
+  double model_cost_scale;
 protected:
   //NgramCounts *m_ng;
   int m_order;
@@ -110,7 +110,7 @@ public:
     const std::string &sent_boundary);
   virtual void estimate_bo_counts();
   virtual void init_probs(const int order, const std::string &sent_boundary);
-  void probs2ascii(FILE *out);
+  void probs2ascii(FILE* out);
   
   //void find_coeffs(float brak=-0.1, float precision=1e-3, float lin_precision=2e-2);
   

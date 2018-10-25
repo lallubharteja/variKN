@@ -151,7 +151,7 @@ void ProbsAbs_t<KT, CT>::constructor_helper(
 
   fprintf(stderr,"Reading probabilities\n");
   this->init_probs(order, sent_start_symbol);
-  remove_sent_start_prob();
+  //remove_sent_start_prob();
 
   fprintf(stderr,"Estimating nzer counts\n");
   this->estimate_nzer_counts();
@@ -259,6 +259,6 @@ void ProbsAbs_t<KT, CT>::remove_zeroprob_grams() {
 }
 
 template <typename KT, typename CT>
-void ProbsAbs_t<KT, CT>::probs2ascii(FILE *out) {
+void ProbsAbs_t<KT, CT>::probs2ascii(FILE* out) {
   moc->WriteProbs(out);
 }

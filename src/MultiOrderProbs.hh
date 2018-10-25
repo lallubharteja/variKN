@@ -20,8 +20,8 @@ public:
   CT m_uni_counts_den;
   bool average; 
   std::vector<sikMatrix<KT, CT> * > m_counts;   
-  std::vector<sikMatrix<KT, float> * > m_probs;    
-  std::vector<sikMatrix<KT, float> * > m_backoffs;    
+  std::vector<sikMatrix<KT, double> * > m_probs;    
+  std::vector<sikMatrix<KT, double> * > m_backoffs;    
  
   inline indextype order_size(int o){
     if (o<=order()) return(m_counts[o]->num_entries());
@@ -57,8 +57,8 @@ public:
   //inline void RemoveEmptyNodes(const int order) {RemoveEmptyNodes(order,0,0);}
 
   /* Manipulation of probs */
-  inline float GetProb(const std::vector<KT> &v);
-  inline float GetProb(const int order, const KT *v);
+  inline double GetProb(const std::vector<KT> &v);
+  inline double GetProb(const int order, const KT *v);
   inline void SetProb(const std::vector <KT> &v, const CT value) {
     SetProb(v.size(),&v[0],value);
   }

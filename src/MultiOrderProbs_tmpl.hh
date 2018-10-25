@@ -1,7 +1,7 @@
 // Library for storing and modifying the probabilities of ngrams
 
 template <typename KT, typename CT>
-float MultiOrderProbs<KT, CT>::GetProb(const std::vector<KT> &v) {
+double MultiOrderProbs<KT, CT>::GetProb(const std::vector<KT> &v) {
   return(GetProb(v.size(),&v[0]));
 }
 
@@ -163,9 +163,9 @@ long MultiOrderProbs<KT, CT>::InitializeProbsFromText(FILE *in, Vocabulary *voca
         }
       }
       if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
+      //fprintf(stderr, "%s %f\n",charbuf,prob);
       this->IncrementProb(v, prob);
       
-      //fprintf(stderr, "%s %f\n",charbuf,prob);
     }
     //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %d\n", 1);
 
@@ -252,7 +252,7 @@ void MultiOrderProbs<KT, CT>::SetProb(const int order, const KT *v,
 }
 
 template <typename KT, typename CT>
-float MultiOrderProbs<KT, CT>::GetProb(const int order, const KT *v) {
+double MultiOrderProbs<KT, CT>::GetProb(const int order, const KT *v) {
   if (order >= m_probs.size()) return(0);
   return(m_probs[order]->getvalue(v));
 }
@@ -362,7 +362,7 @@ void MultiOrderProbs<KT, CT>::allocate_matrices_probs(int o) {
     //fprintf(stderr,"%d)\n", (int) hashsize);
     if (i>4 && order_size(i-1)>1) real_hashsize=order_size(i-1)*2+1;
     //if (i>2) fprintf(stderr,"Allocating counts matrices for order %d, size %d (prev size %d, vocabsize %d)\n", i, real_hashsize, order_size(i-1), this->vocabsize);
-    m_probs[i]= new sikMatrix<KT, float>(i,real_hashsize,0);
+    m_probs[i]= new sikMatrix<KT, CT>(i,real_hashsize,0.0);
   }
 }
 

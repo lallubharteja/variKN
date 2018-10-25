@@ -243,7 +243,7 @@ bool VarigramProbs_t<KT, ICT>::reestimate_with_history(std::vector<KT> &v) {
 
 template <typename KT, typename ICT>
 double VarigramProbs_t<KT, ICT>::modify_model(
-  std::map<KT,ICT> &m, std::map<KT,ICT> &m_prob, const std::vector<KT> &indices, const float ml_norm) {
+  std::map<KT,ICT> &m, std::map<KT,ICT> &m_prob, const std::vector<KT> &indices, const double ml_norm) {
   ICT val;
   int order=indices.size()+1;
   double logprobdelta=0.0;
@@ -257,7 +257,7 @@ double VarigramProbs_t<KT, ICT>::modify_model(
   /* Get the current coding cost */
 
   //fprintf(stderr,"MAPPED %d\n", m.size());
-  float ml_safelogprob=0.0;
+  double ml_safelogprob=0.0;
 
   typename std::map<KT,ICT>::iterator it = m.begin();
   for ( ; it != m.end(); it++ ) {

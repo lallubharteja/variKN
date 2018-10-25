@@ -26,14 +26,14 @@ int main(int argc, char **argv) {
   
   const int max_order=config["norder"].get_int();
   const indextype hashs=config["hashsize"].get_int();
-  const float dscale=std::max(0.00001, config["dscale"].get_double());
-  const float dscale2=config["dscale2"].get_double();
+  const double dscale=std::max(0.00001, config["dscale"].get_double());
+  const double dscale2=config["dscale2"].get_double();
   const int ngram_prune_target=config["numngramstarget"].get_int();
   const bool smallvocab=config["smallvocab"].specified;
   const int iter=1; //config["iter"].get_int();
   const bool discard_unks=config["discard_unks"].specified;
   const bool longint=config["longint"].specified;
-  const float force_disc=config["forcedisc"].get_double();
+  const double force_disc=config["forcedisc"].get_double();
   const std::string readprob(config["readprob"].get_str());
 
   std::string vocabname;
@@ -50,9 +50,9 @@ int main(int argc, char **argv) {
 
   VarigramProbs *vg;
   if (!smallvocab)
-    vg=new VarigramProbs_t<int, float>();
+    vg=new VarigramProbs_t<int, double>();
   else
-    vg=new VarigramProbs_t<unsigned short, float>();
+    vg=new VarigramProbs_t<unsigned short, double>();
   
   if (dscale>0.0) vg->set_datacost_scale(dscale);
   if (dscale2>0.0) vg->set_datacost_scale2(dscale2); // use also pruning

@@ -32,8 +32,8 @@ public:
   inline void write_file(std::string lmname) { io::Stream out(lmname, "w"); write(out.file); out.close(); }
 
 protected:
-  float m_datacost_scale;
-  float m_datacost_scale2;
+  double m_datacost_scale;
+  double m_datacost_scale2;
   indextype m_ngram_prune_target;
   int m_max_order;
   std::string m_infilename;
@@ -77,7 +77,7 @@ private:
   NgramCounts_t<KT, ICT> *m_initial_ng;
 
   bool reestimate_with_history(std::vector<KT> &history);
-  double modify_model(std::map<KT, ICT> &new_c, std::map<KT, ICT> &new_prob, const std::vector<KT> &v, const float ml_norm);
+  double modify_model(std::map<KT, ICT> &new_c, std::map<KT, ICT> &new_prob, const std::vector<KT> &v, const double ml_norm);
   Storage_t<KT, ICT> *m_data;
   void prune();
 };

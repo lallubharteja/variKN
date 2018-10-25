@@ -247,7 +247,12 @@ void ProbsLM_t<KT, CT>::estimate_bo_counts() {
 template <typename KT, typename ICT>
 ICT ProbsLM_impl<KT, ICT>::text_prob(const int order, const KT *i)
 {
-  return this->mop->GetProb(order,i);
+  ICT bo=0.0;
+  if (order == 1) {
+    this->mop->GetBackoff(1,i,&bo);
+    bo=(1.0-bo)/(ICT) this->vocab.num_words();
+  } 
+  return this->mop->GetProb(order,i)+bo;
 }
 
 template <typename KT, typename ICT> ICT ProbsLM_impl<KT, ICT>::
@@ -272,7 +277,7 @@ void ProbsLM_t<KT, CT>::remove_zeroprob_grams() {
 }
 
 template <typename KT, typename CT> void ProbsLM_t<KT, CT>::
-create_model(float prunetreshold) {
+create_model(double prunetreshold) {
   //fprintf(stderr,"Worlds are colliding\n");
   if (prunetreshold>0.0 || this->discard_ngrams_with_unk) {
     prune_model(prunetreshold, (Storage_t<KT, CT> *) NULL);
@@ -290,9 +295,9 @@ void ProbsLM_t<KT, CT>::counts2lm(FILE *out) {
   /*******************************************/
 
   TreeGram::Gram gr;
-  float prob,coeff;
+  double prob,coeff;
   std::vector<KT> v(1);
-  CT num;
+  CT num, sum=0.0;
   std::string field_separator=" ";
 
   // Header containing counts for each order
@@ -310,12 +315,14 @@ void ProbsLM_t<KT, CT>::counts2lm(FILE *out) {
     mop->StepCountsOrder(true,o,&v[0],&num);
     while (mop->StepCountsOrder(false,o,&v[0],&num)) {
       prob=text_prob(o,&v[0]);
+      sum += prob;
       coeff=text_coeff(o+1,&v[0]);
       for (int i=0;i<o;i++) gr[i]=v[i];
       //fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
       gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
       breaker=false;
     }
+    fprintf(stderr,"sum = %lf\n", sum);
     if (breaker) break;
     gramsorter.sort();
 
@@ -367,10 +374,10 @@ CT ProbsLM_t<KT, CT>::tableprob(std::vector<KT> &indices) {
 
 template <typename KT, typename CT>
 void ProbsLM_t<KT, CT>::prune_model_fbase
-(float threshold, Storage_t<KT, CT> *real_counts) {
+(double threshold, Storage_t<KT, CT> *real_counts) {
   std::vector<KT> v;
   CT num;
-  float logprobdelta, safelogprob_mult;
+  double logprobdelta, safelogprob_mult;
 
   threshold=threshold*this->model_cost_scale;
   this->set_order(mop->order());

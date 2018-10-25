@@ -64,9 +64,9 @@ int main(int argc, char **argv) {
 
     /* Parse the arguments, create the right kind of model*/
     if (!smallvocab) {
-      problm=new ProbsLM_impl<int, float>(dataname, "", n, NULL, ss_sym, readprob, average, hashs);
+      problm=new ProbsLM_impl<int, double>(dataname, "", n, NULL, ss_sym, readprob, average, hashs);
     } else {
-      problm=new ProbsLM_impl<unsigned short, float>(dataname, "", n, NULL, ss_sym, readprob, average, hashs);
+      problm=new ProbsLM_impl<unsigned short, double>(dataname, "", n, NULL, ss_sym, readprob, average, hashs);
     } 
     
     fprintf(stderr, "The model will use ");

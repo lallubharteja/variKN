@@ -5,6 +5,9 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 #include "sikMatrix.hh"
 #include "Storage.hh"
 //#include "InterKn.hh"
@@ -35,7 +38,7 @@ namespace MultiOrderCounts_counter_types {
   template <typename CT>
   struct bo_c_fp { // back_off-counts
     CT den;   //denominators
-    float nzer;  //non-zero counts
+    CT nzer;  //non-zero counts
     CT lost; // for pruning
     CT lost_den;
 
@@ -156,7 +159,7 @@ public:
   virtual inline indextype bo_order_size(int o)=0;
 
   virtual void WriteCounts(FILE *out)=0;
-  virtual void WriteProbs(FILE *out)=0;
+  virtual void WriteProbs(FILE* out)=0;
   virtual void ReadCounts(FILE *in)=0;
   virtual void RemoveOrder(int order)=0;
   long InitializeCountsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym);
@@ -180,8 +183,8 @@ public:
   //inline void RemoveEmptyNodes(const int order) {RemoveEmptyNodes(order,0,0);}
 
   /* Manipulation of probs */
-  inline float GetProb(const std::vector<KT> &v);
-  inline float GetProb(const int order, const KT *v);
+  inline double GetProb(const std::vector<KT> &v);
+  inline double GetProb(const int order, const KT *v);
   inline void SetProb(const std::vector <KT> &v, const CT value) {
     SetProb(v.size(),&v[0],value);
   }
@@ -230,8 +233,8 @@ public:
   CT m_uni_counts_den;
   
   std::vector<sikMatrix<KT, CT> * > m_counts;   // This should be private
-  std::vector<sikMatrix<KT, float> * > m_probs;   // This should be private 
-  std::vector<sikMatrix<KT, float> * > m_probs_den;   // This should be private 
+  std::vector<sikMatrix<KT, CT> * > m_probs;   // This should be private 
+  std::vector<sikMatrix<KT, double> * > m_probs_den;   // This should be private 
   
   virtual void IncrementBackoffCacheNzer(const int order, const KT *v, 
 					 const CT value){assert(false);}
@@ -257,7 +260,7 @@ using MultiOrderCounts_typed_interfaces<KT, CT, bo_3c_fp>::x
   inline void write_num(FILE *out, const unsigned int val)   {fprintf(out,"%u",val);}
   inline void write_num(FILE *out, const long val)   {fprintf(out,"%ld",val);}
   inline void write_num(FILE *out, const float val) {fprintf(out,"%.12f",val);}
-  inline void write_num(FILE *out, const double val) {fprintf(out,"%.4f",val);}
+  inline void write_num(FILE *out, const double val) {fprintf(out,"%.12f",val);}
   inline void write_prob(FILE *out, const float val) {fprintf(out,"%.12f",val);}
   inline void read_num(int *val, const std::string *s, bool *ok) {
     *val = str::str2long(s, ok);
@@ -292,6 +295,7 @@ protected:
 
   /* Low-level matrix library functions */
   CT Increment_wo_del(struct matrix *m, const KT *indices, const CT value);
+  CT Safe_increment_wo_del(struct matrix *m, const KT *indices, const CT value);
 
   struct c_cache_t {
     int order;
@@ -311,7 +315,7 @@ public:
 
   inline int order() {return MultiOrderCounts<KT, CT>::m_counts.size()-1;}
   void WriteCounts(FILE *out);
-  void WriteProbs(FILE *out);
+  void WriteProbs(FILE* out);
   void ReadCounts(FILE *in);
 
   void RemoveOrder(int order);
