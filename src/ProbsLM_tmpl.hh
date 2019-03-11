@@ -26,13 +26,27 @@ ProbsLM_impl<KT, ICT>::ProbsLM_impl(
 		     hashsize, sent_boundary);
 }
 
+template <typename KT, typename ICT>
+ProbsLM_impl<KT, ICT>::ProbsLM_impl(
+  const std::string data, const std::string vocab,
+  const int order, Storage_t<KT, ICT> *datastorage, 
+  const std::string sent_boundary, const std::string read_prob, const bool average,
+  const int k, const indextype hashsize):
+  ProbsLM_t<KT, ICT>(data)
+{
+  this->mop = new MultiOrderProbs<KT, ICT>;
+  this->read_prob = read_prob;
+  this->average = average;
+  this->constructor_helper(vocab, order, datastorage, 
+		     hashsize, sent_boundary, k);
+}
+
 template <typename KT, typename ICT> void ProbsLM_impl<KT, ICT>::
 remove_sent_start_prob_fbase(ICT *dummy) {
   std::vector<KT> tmp(1, (KT) this->m_sent_boundary);
   const ICT value=this->mop->GetCount(tmp);
   this->mop->IncrementCount(tmp,-value);
 }
-
 template <typename KT, typename CT>
 void ProbsLM_t<KT, CT>::add_zeroprob_grams_fbase(CT *dummy) {
   std::vector<KT> v;
@@ -73,8 +87,7 @@ void ProbsLM_t<KT, CT>::add_zeroprob_grams_fbase(CT *dummy) {
 template <typename KT, typename CT>
 void ProbsLM_t<KT, CT>::constructor_helper(
   const std::string &vocabname, const int order, Storage_t<KT, CT> *datastorage,
-  const indextype hashsize, 
-  const std::string &sent_start_symbol){
+  const indextype hashsize, const std::string &sent_start_symbol){
 
   mop->hashsize=hashsize;
   mop->average = this->average;
@@ -158,23 +171,137 @@ void ProbsLM_t<KT, CT>::constructor_helper(
   this->model_cost_scale=log2(this->vocab.num_words())+2*10;
 }
 
-template <typename KT, typename ICT>
-void ProbsLM_t<KT, ICT>::init_probs(const int order, Storage_t<KT, ICT> *datastorage, const std::string &sent_start_symbol ) {
-  int sent_start_idx;
-  if (datastorage) {
-    sent_start_idx=this->vocab.word_index(sent_start_symbol);
-    if (sent_start_idx==0 && sent_start_symbol.length()) {
-      fprintf(stderr,"No sentence start %s(len %d) in vocab, exit.\n", sent_start_symbol.c_str(), (int) sent_start_symbol.length());
+template <typename KT, typename CT>
+void ProbsLM_t<KT, CT>::constructor_helper(
+  const std::string &vocabname, const int order, Storage_t<KT, CT> *datastorage,
+  const indextype hashsize, const std::string &sent_start_symbol, int k){
+
+  mop->hashsize=hashsize;
+  mop->average = this->average;
+  io::Stream::verbose=true;
+  this->input_data_size=0;
+
+  if (vocabname.length()) {
+    fprintf(stderr,"Using vocab %s\n", vocabname.c_str());
+    if (this->vocab.num_words()>1) 
+      fprintf(stderr,"Warning: something is going wrong. The vocabularies must be the same (not checked)\n");
+    if (this->vocab.num_words()>65534) { 
+      fprintf(stderr,"Too big vocabulary for --smallvocab (%d). Exit.\n", 
+		this->vocab.num_words());
+	exit(-1);
+    }
+    io::Stream vocabin(vocabname,"r");
+    this->vocab.read(vocabin.file);
+    if (this->vocab.num_words()<1) {
+      fprintf(stderr, "Warning: no words from vocab file? Exit\n");
       exit(-1);
     }
   }
+
+  if (this->vocab.num_words()>1) {
+    fprintf(stderr,"Restricted vocab\n");
+    if (!datastorage) {
+      io::Stream datain(this->m_data_name,"r");
+      this->input_data_size=mop->InitializeCountsFromText(datain.file, &(this->vocab), false, order, sent_start_symbol);
+      datain.close();
+    } else {
+      io::Stream probin(this->read_prob,"r");
+      int sent_start_idx=this->vocab.word_index(sent_start_symbol);
+
+      if (sent_start_idx==0 && sent_start_symbol.length()) {
+        fprintf(stderr,"No sentence start %s(len %d) in vocab, exit.\n", sent_start_symbol.c_str(), (int) sent_start_symbol.length());
+        exit(-1);
+      }
+      
+      datastorage->read_topk_probs(probin.file, this->vocab, k, sent_start_idx);
+      this->input_data_size=mop->InitializeCountsFromStorage(datastorage, order, sent_start_idx);
+      probin.close();
+    }
+  } else {
+    if ( this->KT_is_short((KT *)NULL) ) {
+      NgramCounts_t<int, CT> nc_tmp(1,0,500000);
+
+      io::Stream datain(this->m_data_name,"r");
+      nc_tmp.count(datain.file, true);
+      datain.close();
+
+      nc_tmp.vocab->copy_vocab_to(this->vocab);
+
+      datain.open(this->m_data_name,"r");
+      this->input_data_size=mop->InitializeCountsFromText(datain.file, &(this->vocab), false, order, sent_start_symbol);
+      datain.close();
+     } else {
+      io::Stream datain(this->m_data_name,"r"); 
+      this->input_data_size=mop->InitializeCountsFromText(datain.file, &(this->vocab), true, order, sent_start_symbol);
+      datain.close();
+
+      if (datastorage) {
+	io::Stream probin(this->read_prob,"r");
+        int sent_start_idx=this->vocab.word_index(sent_start_symbol);
+
+        if (sent_start_idx==0 && sent_start_symbol.length()) {
+          fprintf(stderr,"No sentence start %s(len %d) in vocab, exit.\n", sent_start_symbol.c_str(), (int) sent_start_symbol.length());
+          exit(-1);
+        }
+
+	datastorage->read_topk_probs(probin.file, this->vocab, k, sent_start_idx);
+        probin.close();
+      }     
+     }
+  }
+
+  this->set_order(mop->order());
+  if (sent_start_symbol.size()) this->m_sent_boundary=this->vocab.word_index(sent_start_symbol);
+
+  fprintf(stderr,"Estimating bo counts\n");
+  estimate_bo_counts();
+
+  fprintf(stderr,"Reading probabilities\n");
+  this->init_probs(order, datastorage, sent_start_symbol, k);
+
+  this->model_cost_scale=log2(this->vocab.num_words())+2*10;
+}
+
+
+template <typename KT, typename ICT>
+void ProbsLM_t<KT, ICT>::init_probs(const int order, Storage_t<KT, ICT> *datastorage, const std::string &sent_start_symbol) {
   for (int o=1; o<=order; o++) {
-    io::Stream probin(this->read_prob, "r");
-    if (!datastorage)
+
+    if (!datastorage) {
+      io::Stream probin(this->read_prob, "r");
       mop->InitializeProbsFromText(probin.file, &(this->vocab), false, o, sent_start_symbol);
-    else 
+      probin.close();
+    } else {
+      int sent_start_idx=this->vocab.word_index(sent_start_symbol);
+
+      if (sent_start_idx==0 && sent_start_symbol.length()) {
+        fprintf(stderr,"No sentence start %s(len %d) in vocab, exit.\n", sent_start_symbol.c_str(), (int) sent_start_symbol.length());
+        exit(-1);
+      }
+
       mop->InitializeProbsFromStorage(datastorage, order, sent_start_idx);
-    probin.close();
+    }
+  }
+}
+
+template <typename KT, typename ICT>
+void ProbsLM_t<KT, ICT>::init_probs(const int order, Storage_t<KT, ICT> *datastorage, const std::string &sent_start_symbol, const int k) {
+  for (int o=1; o<=order; o++) {
+
+    if (!datastorage) {
+      io::Stream probin(this->read_prob, "r");
+      mop->InitializeProbsFromText(probin.file, &(this->vocab), false, o, sent_start_symbol, k);
+      probin.close();
+    } else {
+      int sent_start_idx=this->vocab.word_index(sent_start_symbol);
+
+      if (sent_start_idx==0 && sent_start_symbol.length()) {
+        fprintf(stderr,"No sentence start %s(len %d) in vocab, exit.\n", sent_start_symbol.c_str(), (int) sent_start_symbol.length());
+        exit(-1);
+      }
+
+      mop->InitializeProbsFromStorage(datastorage, order, sent_start_idx, k);
+    }
   }
 }
 
@@ -315,14 +442,14 @@ void ProbsLM_t<KT, CT>::counts2lm(FILE *out) {
     mop->StepCountsOrder(true,o,&v[0],&num);
     while (mop->StepCountsOrder(false,o,&v[0],&num)) {
       prob=text_prob(o,&v[0]);
-      sum += prob;
+      //sum += prob;
       coeff=text_coeff(o+1,&v[0]);
       for (int i=0;i<o;i++) gr[i]=v[i];
       //fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
       gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
       breaker=false;
     }
-    fprintf(stderr,"sum = %lf\n", sum);
+    //fprintf(stderr,"sum = %lf\n", sum);
     if (breaker) break;
     gramsorter.sort();
 
@@ -380,6 +507,7 @@ void ProbsLM_t<KT, CT>::prune_model_fbase
   double logprobdelta, safelogprob_mult;
 
   threshold=threshold*this->model_cost_scale;
+  fprintf(stderr,"Threshold %.12f\n",threshold);
   this->set_order(mop->order());
   for (int o=this->order();o>=2;o--) {
     if (real_counts) {

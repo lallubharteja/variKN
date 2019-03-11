@@ -61,11 +61,6 @@ int main(int argc, char **argv) {
   //const bool skip_unks = config["skip_unks"].specified;
   //assert(!skip_unks); // FIXME: implement this
   bool ok=true;
-  std::vector<int> cutoffs=str::long_vec<int>(config["cutoffs"].get_str(),&ok);
-  if (!ok) {
-    fprintf(stderr,"Error parsing cutoffs, exit\n");
-    exit(-1);
-  }
 
   int counts_in=0;
   if (config["counts"].specified) counts_in=1;
@@ -140,9 +135,9 @@ int main(int argc, char **argv) {
     else fprintf(stderr,"Kneser-Ney smoothing.\n");
 
     kn->init_disc(disc); 
-    
-    //if (ehist) kn->use_ehist_pruning(kn->input_data_size);
-    kn->cutoffs=cutoffs;
+   
+    if (config["cutoffs"].specified) 
+      kn->set_cutoffs(config["cutoffs"].get_str());
     kn->discard_cutoffs=discard_cutoffs;
     kn->discard_ngrams_with_unk=discard_unks;
     kn->create_model(std::max((float) 0.0,prunetreshold));

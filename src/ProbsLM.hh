@@ -89,15 +89,23 @@ public:
   ProbsLM_t(const std::string &datasource):
     ProbsLM_k<KT>(datasource), m_eval_cache(NULL) {}
   ~ProbsLM_t();
+
   void constructor_helper(
     const std::string &vocabname,
     const int order, Storage_t<KT, CT> *datastorage, 
     const indextype hashsize, 
     const std::string &sent_boundary);
+
+  void constructor_helper(
+    const std::string &vocabname,
+    const int order, Storage_t<KT, CT> *datastorage, 
+    const indextype hashsize, 
+    const std::string &sent_boundary, const int k);
+
   virtual void estimate_bo_counts();
   virtual void init_probs(const int order, Storage_t<KT, CT> *datastorage, const std::string &sent_boundary);
+  virtual void init_probs(const int order, Storage_t<KT, CT> *datastorage, const std::string &sent_boundary, const int k);
   void probs2ascii(FILE *out);
-  
   
   double logprob_file(const char *name);
   double logprob_datastorage(const Storage<KT> &data);
@@ -145,8 +153,15 @@ public:
   ProbsLM_impl(
     const std::string data, const std::string vocab,
     const int order, Storage_t<KT, ICT> *datastorage, 
-    const std::string sent_boundary, const std::string read_prob, const bool average,
-    const indextype hashsize=3000000);
+    const std::string sent_boundary, const std::string read_prob, 
+    const bool average, const indextype hashsize);
+  
+  ProbsLM_impl(
+    const std::string data, const std::string vocab,
+    const int order, Storage_t<KT, ICT> *datastorage, 
+    const std::string sent_boundary, const std::string read_prob, 
+    const bool average, const int k, const indextype hashsize);
+
   virtual inline void prune_model(double threshold, Storage_t<KT, ICT> *real_counts) {
     this->prune_model_fbase(threshold, real_counts);
   }

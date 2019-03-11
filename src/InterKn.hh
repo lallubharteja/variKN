@@ -35,6 +35,7 @@ public:
   inline int order() {return m_order;}
   inline void use_ehist_pruning(int x) { m_ehist_estimate=x;}
   virtual void set_order(int o)=0;
+  virtual void set_cutoffs(std::string x)=0;
   
   virtual void estimate_bo_counts(bool zerosent=false)=0;
   virtual void estimate_nzer_counts()=0;
@@ -81,13 +82,7 @@ public:
   virtual void print_matrix(int o) {}
   size_t input_data_size;
 
-  std::vector<int> cutoffs;
-  inline int cutoff(int x) {
-    if (!cutoffs.size()) return 0;
-    if (x>cutoffs.size()) return cutoffs.back();
-    assert(x>0);
-    return cutoffs[x-1];
-  }
+
   bool discard_cutoffs;
   bool discard_ngrams_with_unk;
   float model_cost_scale;
@@ -168,6 +163,22 @@ public:
       //fprintf(stderr,"numg %d=%d\n",i,moc->order_size(i));
     }
     return(n_grams);
+  }
+
+  std::vector<CT> cutoffs;
+  inline void set_cutoffs(std::string x) {
+    bool ok=true;
+    this->cutoffs=str::long_vec<CT>(x,&ok);
+    if (!ok) {
+      fprintf(stderr,"Error parsing cutoffs, exit\n");
+      exit(-1);
+    } 
+  }
+  inline CT cutoff(int x) {
+    if (!cutoffs.size()) return 0;
+    if (x>cutoffs.size()) return cutoffs.back();
+    assert(x>0);
+    return cutoffs[x-1];
   }
   
   void create_model(float prunetreshold);

@@ -351,13 +351,16 @@ void InterKn_t<KT, CT>::prune_model_fbase
   std::vector<KT> v;
   CT num;
   float logprobdelta, safelogprob_mult;
+  int accepted;
 
-  treshold=treshold*this->model_cost_scale;
+  //treshold=treshold*this->model_cost_scale;
+  fprintf(stderr,"Using threshold %f\n", treshold);
   
   this->set_order(moc->order());
   if (this->m_absolute_discounting) recorrect_kn=false;
   
   for (int o=this->order();o>=2;o--) {
+    accepted=0;
     if (real_counts) {
       fprintf(stderr,"Using real counts\n");
       real_counts->initialize_fast_search_lists_for_pruning(o, moc->m_counts[o]);
@@ -374,13 +377,15 @@ void InterKn_t<KT, CT>::prune_model_fbase
       }
       assert(num>0);
       moc->ResetCaches();
-      if (num<=this->cutoff(o)) {
+      if (num <= (CT) this->cutoff(o)) {
+        //fprintf(stderr,"Cutoff Pruning %f %d\n", num, this->cutoff(o));
 	if (this->discard_cutoffs) 
 	 prune_gram(v, num, false,(BOT *) NULL);
 	else prune_gram(v, num, recorrect_kn,(BOT *) NULL);
 	if (!real_counts) moc->DeleteCurrentST(o);
 	continue;
       }
+      //fprintf(stderr,"Cutoff Pruning %f %d\n", num, this->cutoff(o));
       
       if (this->discard_ngrams_with_unk) {
 	bool flag=false;
@@ -421,11 +426,12 @@ void InterKn_t<KT, CT>::prune_model_fbase
 
       if (logprobdelta-treshold>0) {
 	moc->UndoCached();
-
+        accepted += 1;
       } else {
 	if (!real_counts) moc->DeleteCurrentST(o);
       }
     }
+    fprintf(stderr,"Accepted %d %d-grams\n",accepted, o);
 
     // Clean up for realcounts
     if (real_counts) {
@@ -841,6 +847,7 @@ void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
     while (moc->StepCountsOrder(false,o,&v[0],&num)) {
       prob=kn_prob(o,&v[0],num);
       coeff=kn_coeff(o+1,&v[0]);
+      
       for (int i=0;i<o;i++) gr[i]=v[i];
       fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
       gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
@@ -964,20 +971,20 @@ double InterKn_t<KT, CT>::tableprob(std::vector<KT> &indices) {
   double prob=0.0;
   KT *iptr;
 
-  fprintf(stderr,"looking ");print_indices(stderr,indices);fprintf(stderr,"\n");
+  //fprintf(stderr,"looking ");print_indices(stderr,indices);fprintf(stderr,"\n");
   const int looptill=std::min(indices.size(),(size_t) this->m_order);
   for (int n=1;n<=looptill;n++) {
     iptr=&(indices.back())-n+1;
     if (n>1) {
-      fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, kn_coeff(n, iptr));
+      //fprintf(stderr,"prob %.4f * coeff %.4f = ", prob, kn_coeff(n, iptr));
       prob*=kn_coeff(n,iptr);
-      fprintf(stderr,"%.4f\n", prob);
+      //fprintf(stderr,"%.4f\n", prob);
     }
-    fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, kn_prob(n, iptr));
+    //fprintf(stderr,"oldprob %.4f + prob %.4f = ", prob, kn_prob(n, iptr));
     prob += kn_prob(n,iptr);
-    fprintf(stderr,"%.4f\n",prob);
+    //fprintf(stderr,"%.4f\n",prob);
   }
-  fprintf(stderr,"vc: return %e\n",prob);
+  //fprintf(stderr,"vc: return %e\n",prob);
   assert(prob>=-1e-03 && prob<=1.001);
   return(prob);
 }

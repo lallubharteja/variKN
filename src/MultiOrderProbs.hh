@@ -35,8 +35,10 @@ public:
   /* Functions to read counts and probabilities from text */
   long InitializeCountsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym);
   long InitializeProbsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym);
+  long InitializeProbsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym, const int k);
   long InitializeCountsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx);
   long InitializeProbsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx);
+  long InitializeProbsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx, const int k);
 
   /* Functions to step through counts and backoff vectors  */
   //void UseAsCounts(sikMatrix<KT, CT> *mat);

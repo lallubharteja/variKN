@@ -185,6 +185,111 @@ long MultiOrderProbs<KT, CT>::InitializeProbsFromText(FILE *in, Vocabulary *voca
  * counts from the text have been read in and populated.
 **/
 template <typename KT, typename CT>
+long MultiOrderProbs<KT, CT>::InitializeProbsFromText(FILE *in, Vocabulary *vocab, const bool grow_vocab, const int read_order, const std::string &sent_start_sym, const int k) {
+  char charbuf[MAX_WLEN+1];
+  long num_read=0;
+  int sent_start_idx;
+  KT idx, topk_idx;
+  std::vector<KT> v;
+  TreeGram::Gram gr;
+  CT prob= 0.0, den;
+  //fprintf(stderr,"Order %i\n", read_order);
+
+  if (grow_vocab) {
+    if (sent_start_sym.size()) sent_start_idx=vocab->add_word(sent_start_sym);
+    else sent_start_idx=-1;
+    vocabsize=64000;
+  } else {
+    vocabsize=vocab->num_words();
+    if (!sent_start_sym.size()) sent_start_idx=-1;
+    else if (!(sent_start_idx=vocab->word_index(sent_start_sym))) {
+      fprintf(stderr,"No sentence start symbol %s in vocabulary, exit.\n", sent_start_sym.c_str());
+      exit(-1);
+    }
+  }
+
+  while (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)!=EOF) {
+    if (grow_vocab) idx=vocab->add_word(charbuf);
+    else idx=vocab->word_index(charbuf);
+
+    if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf) == EOF) {
+      fprintf(stderr,"Expected a logprob after the word %s", charbuf);
+      exit(-1);
+    }
+
+    if (idx==sent_start_idx) v.clear();
+
+    if (v.size()<read_order) { 
+      v.push_back(idx); 
+    }
+    else v.back()=idx;
+
+    if (v.size()==read_order) {
+      
+      if (read_order == 1) den=m_uni_counts_den;
+      else den=this->GetCount(read_order-1, &v[0]);
+
+      prob = exp(atof(charbuf))/(CT) den;
+
+      bool flag=false;
+      for (int i=1;i<read_order;i++) {
+        if (v[i]==sent_start_idx) {
+          flag=true;
+        }
+      }
+      if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
+      this->IncrementProb(v, prob);
+      
+      if (idx != sent_start_idx) {
+        for (int i=0; i<k; i++){
+          if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)==EOF) {
+            fprintf(stderr,"Storage::read_topk_probs: Expected a word %s", charbuf);
+            exit(-1);
+          }
+          topk_idx = vocab->word_index(charbuf);
+
+          if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)==EOF) {
+            fprintf(stderr,"Storage::read_topk_probs: Expected a logprob %s", charbuf);
+            exit(-1);
+          }
+          prob = exp(atof(charbuf))/(CT) den;
+
+          if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
+
+          v[read_order-1]=topk_idx;
+          this->IncrementProb(v, prob);    
+        }
+      }
+      v[read_order-1]=idx;
+    } else if (idx != sent_start_idx) {
+      for (int i=0; i<k; i++) { //read through rest of the line to move to the next line
+        if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)==EOF) {
+          fprintf(stderr,"Storage::read_topk_probs: Expected a word %s", charbuf);
+          exit(-1);
+        }
+        if (fscanf(in,MAX_WLEN_FMT_STRING,charbuf)==EOF) {
+          fprintf(stderr,"Storage::read_topk_probs: Expected a logprob %s", charbuf);
+          exit(-1);
+        }
+      }
+    }
+
+    if (v.size()==read_order) 
+      for (int j=0;j<read_order-1;j++) 
+	v[j]=v[j+1];
+    
+    num_read++;
+  }
+  fprintf(stderr,"Finished reading %ld words.\n", num_read);
+
+  return(num_read);
+}
+
+/**
+ * The function below assumes it will be called after the
+ * counts from the text have been read in and populated.
+**/
+template <typename KT, typename CT>
 long MultiOrderProbs<KT, CT>::InitializeProbsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx) {
   long num_read=0;
   KT idx;
@@ -223,6 +328,73 @@ long MultiOrderProbs<KT, CT>::InitializeProbsFromStorage(Storage_t<KT, CT> *data
       //fprintf(stderr, "%f %f\n",data->prob(di),prob);
     }
     //fprintf(stderr,"Cadd ");print_indices(stderr,v);fprintf(stderr," %d\n", 1);
+
+    if (v.size()==read_order) 
+      for (int j=0;j<read_order-1;j++) 
+	v[j]=v[j+1];
+    
+  }
+  fprintf(stderr,"Finished reading %ld words.\n", num_read);
+
+  return(num_read);
+}
+
+/**
+ * The function below assumes it will be called after the
+ * counts from the text have been read in and populated.
+**/
+template <typename KT, typename CT>
+long MultiOrderProbs<KT, CT>::InitializeProbsFromStorage(Storage_t<KT, CT> *data, const int read_order, const int sent_start_idx , const int k) {
+  long num_read=0;
+  KT idx, topk_idx;
+  std::vector<KT> v;
+  CT prob= 0.0, den;
+  //fprintf(stderr,"Order %i\n", read_order);
+  for (size_t di=0;di<data->size(); di++) {
+    num_read++;
+    idx=data->data(di);
+    if (idx==sent_start_idx) v.clear();
+
+    if (v.size()<read_order) { 
+      v.push_back(idx); 
+    }
+    else v.back()=idx;
+
+    if (v.size()==read_order) {
+      if (read_order == 1) den=m_uni_counts_den;
+      else den=this->GetCount(read_order-1, &v[0]);
+
+      prob = data->prob(di)/(CT) den;
+
+      bool flag=false;
+      for (int i=1;i<read_order;i++) {
+        if (v[i]==sent_start_idx) {
+          flag=true;
+        }
+      }
+      
+
+      if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
+      this->IncrementProb(v, prob);
+
+      if (idx != sent_start_idx) {
+        std::vector<std::pair<KT,CT> > topk_probs_for_idx = data->topk_probs(di);
+        //fprintf(stderr, "idx: %d di: %zu size: %zu\n", idx, di, topk_probs_for_idx.size());
+        for (int i=0; i<k; i++){
+          topk_idx = topk_probs_for_idx[i].first;
+          prob = exp(topk_probs_for_idx[i].second)/(CT) den;
+          
+        //  fprintf(stderr, " topk_idx: %i prob: %lf", topk_idx, topk_probs_for_idx[i].second);
+
+          if (!flag) this->IncrementBackoff(read_order,&v[0],prob);
+
+          v[read_order-1]=topk_idx;
+          this->IncrementProb(v, prob);
+        }
+      }
+      v[read_order-1]=idx; 
+      
+    }
 
     if (v.size()==read_order) 
       for (int j=0;j<read_order-1;j++) 

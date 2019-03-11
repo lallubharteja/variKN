@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <typeinfo>
 #include <stdio.h>
 
 /** Functions for handling strings of the Standard Template Library. */
@@ -103,10 +104,19 @@ namespace str {
     std::vector<std::string> str_vec;
     str::split(&str, " \t\n", true, &str_vec);
     std::vector<T> vec(str_vec.size());
-    for (size_t i = 0; i < str_vec.size(); i++)
-      vec[i] = str::str2long(str_vec[i].c_str(), ok);
+    for (size_t i = 0; i < str_vec.size(); i++){
+        if (typeid(T) == typeid(int))
+          vec[i] = str::str2long(str_vec[i].c_str(), ok);
+        else if (typeid(T) == typeid(float))
+          vec[i] = str::str2float(str_vec[i].c_str(), ok);
+        else {
+          fprintf(stderr, "str::long_vec unrecogized template type\n");
+          exit(-1);
+        }
+    }
     return vec;
   }
+
 };
 
 #endif /* STR_HH */

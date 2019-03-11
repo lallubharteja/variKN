@@ -1,5 +1,6 @@
 // Program to grow an n-gram model
 #include "VarigramProbsFuncs.hh"
+#include "VarigramProbsTopkFuncs.hh"
 #include "conf.hh"
 #include "io.hh"
 
@@ -10,7 +11,6 @@ int main(int argc, char **argv) {
     ('n', "norder=INT","arg","0","Maximal order included in the model (default unrestricted)")
     ('D',"dscale=FLOAT","arg","-1.0","Model size scale factor")
     ('E',"dscale2=FLOAT","arg","0","Model size scaling during pruning step (default no pruning=0)")
-    ('a', "arpa","","","Output arpa instead of binary LM")
     ('B', "vocabin=FILE", "arg", "", "Restrict the vocabulary to given words")
     
     ('H', "hashsize=INT", "arg", "0", "Size of the reserved hash table. Speed vs. memory consumption.")
@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
     ('L', "longint", "", "", "Store counts in a long int type. Needed for big training sets.")
     ('V',"numngramstarget=INT","arg","0","Scale model down until there are less than V*1.03 ngrams in the model")
     ('F',"forcedisc=FLOAT","arg","-1.0", "Set all discounts to the given value.")
+    ('k', "k=INT","arg","0","Use topk apprloximation to generate the LM")
     ('P', "readprob=FILE","arg","", "Read the specified file that has probability associated with each word.\nEach line of the textprob has a word and an associated probability separated by space.");
   
   config.parse(argc,argv,2);
@@ -33,6 +34,7 @@ int main(int argc, char **argv) {
   const int iter=1; //config["iter"].get_int();
   const bool discard_unks=config["discard_unks"].specified;
   const bool longint=config["longint"].specified;
+  const int k =config["k"].get_int();
   const double force_disc=config["forcedisc"].get_double();
   const std::string readprob(config["readprob"].get_str());
 
@@ -48,34 +50,68 @@ int main(int argc, char **argv) {
   io::Stream out(config.arguments.at(1),"w");
   io::Stream::verbose=false;
 
-  VarigramProbs *vg;
-  if (!smallvocab)
-    vg=new VarigramProbs_t<int, double>();
-  else
-    vg=new VarigramProbs_t<unsigned short, double>();
+
+  if (!k) { //Call the fast approximation method
+    VarigramProbs *vg;
+    if (!smallvocab)
+      vg=new VarigramProbs_t<int, double>();
+    else
+      vg=new VarigramProbs_t<unsigned short, double>();
   
-  if (dscale>0.0) vg->set_datacost_scale(dscale);
-  if (dscale2>0.0) vg->set_datacost_scale2(dscale2); // use also pruning
-  if (ngram_prune_target > 0) vg->set_ngram_prune_target(ngram_prune_target);
-  if (max_order) vg->set_max_order(max_order);
+    if (dscale>0.0) vg->set_datacost_scale(dscale);
+    if (dscale2>0.0) vg->set_datacost_scale2(dscale2); // use also pruning
+    if (ngram_prune_target > 0) vg->set_ngram_prune_target(ngram_prune_target);
+    if (max_order) vg->set_max_order(max_order);
 
-  try {
-    if (config["clear_history"].specified)
-      vg->initialize(infilename, hashs, 
-		     "<s>", readprob, vocabname);
-    else 
-      vg->initialize(infilename, hashs, 
-		     "", readprob, vocabname);
+    try {
+      if (config["clear_history"].specified)
+        vg->initialize(infilename, hashs, 
+	  	     "<s>", readprob, vocabname);
+      else 
+        vg->initialize(infilename, hashs, 
+  		     "", readprob, vocabname);
 
-    vg->set_discard_unks(discard_unks);
-    vg->grow(iter);
+      vg->set_discard_unks(discard_unks);
+      vg->grow(iter);
 
-    vg->write(out.file);
-    out.close();
-    delete vg;
-  }
-  catch (std::exception &e) {
-    fprintf(stderr,"%s\n",e.what());
-    exit(1); 
+      vg->write(out.file);
+      out.close();
+      delete vg;
+    }
+    catch (std::exception &e) {
+      fprintf(stderr,"%s\n",e.what());
+      exit(1); 
+    }
+  } else { //Call the full approximation method
+    VarigramProbsTopk *vg;
+    if (!smallvocab)
+      vg=new VarigramProbsTopk_t<int, double>();
+    else
+      vg=new VarigramProbsTopk_t<unsigned short, double>();
+
+    if (dscale>0.0) vg->set_datacost_scale(dscale);
+    if (dscale2>0.0) vg->set_datacost_scale2(dscale2); // use also pruning
+    if (ngram_prune_target > 0) vg->set_ngram_prune_target(ngram_prune_target);
+    if (max_order) vg->set_max_order(max_order);
+
+    try {
+      if (config["clear_history"].specified)
+        vg->initialize(infilename, hashs,
+                     "<s>", readprob, vocabname, k);
+      else
+        vg->initialize(infilename, hashs,
+                     "", readprob, vocabname, k);
+
+      vg->set_discard_unks(discard_unks);
+      vg->grow(iter);
+
+      vg->write(out.file);
+      out.close();
+      delete vg;
+    }
+    catch (std::exception &e) {
+      fprintf(stderr,"%s\n",e.what());
+      exit(1);
+    }
   }
 }
