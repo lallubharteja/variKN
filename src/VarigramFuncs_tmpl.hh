@@ -324,7 +324,7 @@ double Varigram_t<KT, ICT>::modify_model(
     logprobdelta+=safelogprob(m_kn->tableprob(ind))*it->second;
     // ml safelogprob enables earlier pruning and makes things slightly 
     // faster
-    fprintf(stderr,"count %d ml_norm %g\n", it->second, ml_norm);
+    std::cerr << "count " << it->second << "ml_norm " << ml_norm << std::endl;
     ml_safelogprob+=safelogprob(it->second *ml_norm)*it->second;
   }
 

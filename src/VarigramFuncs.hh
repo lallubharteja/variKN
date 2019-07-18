@@ -68,7 +68,8 @@ public:
     m_kn->set_sentence_boundary_symbol(s);
   }
   void set_cutoffs(std::vector<int> v) {
-    m_kn->cutoffs=v;
+    std::vector<ICT> c(v.begin(),v.end());
+    m_kn->cutoffs = c;
   }
   void set_discard_unks(bool x) {
     m_kn->discard_ngrams_with_unk=x;
