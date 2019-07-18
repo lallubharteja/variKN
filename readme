@@ -5,6 +5,8 @@ language models. Amongst the supported methods are:
 - Kneser-Ney smoothing 
 - Revised Kneser pruning 
 - Kneser-Ney growing 
+- Probability conversion method for approximating RNNLMs
+- N-gram growing algorithm for approximating RNNLMs
 
 The descriptions of Revised Kneser pruning and Kneser-Ney growing can
 be found in the paper Vesa Siivola, Teemu Hirsimäki and Sami Virpioja,
