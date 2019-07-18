@@ -915,18 +915,15 @@ void TreeGram::print_debuglist() {
 }
 
 void TreeGram::finalize(bool add_missing_unigrams) {
-  fprintf(stderr,"here3\n");
   while (add_missing_unigrams && ( m_nodes.size() < num_words()  )) {
     Gram g(1);
     g[0]=m_nodes.size();
     add_gram(g, MINLOGPROB, 0);
     m_last_gram = g;
-    fprintf(stderr,"here1\n");
   }
 
   if (m_nodes.back().child_index == -1) return;
   Node node;
-  fprintf(stderr,"here2\n");
   m_nodes.push_back(node);
 }
 

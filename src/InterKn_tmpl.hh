@@ -536,9 +536,9 @@ void InterKn_t<KT, CT>::add_zeroprob_grams_fbase(BOT *dummy) {
     BOT b;
     
     if (o==2) continue;
-    this->moc->StepBackoffsOrder(true, o, &v[0], &b);
-    while (this->moc->StepBackoffsOrder(false, o, &v[0], &b))
-      if (b.den>0) this->moc->IncrementCount(o-1, &v[0], 0);
+    //this->moc->StepBackoffsOrder(true, o, &v[0], &b);
+    //while (this->moc->StepBackoffsOrder(false, o, &v[0], &b))
+      //if (b.den>0) this->moc->IncrementCount(o-1, &v[0], 0);
   }
 
   // Add zeroprob unigrams:
@@ -818,8 +818,11 @@ void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
   /*******************************************/
 
   remove_zeroprob_grams();
+  fprintf(stderr, "After remove order %d ngrams %d\n", 2, moc->order_size(2));
   add_zeroprob_grams();
+  fprintf(stderr, "After add order %d ngrams %d\n", 2, moc->order_size(2));
   add_counts_for_backoffs();
+  fprintf(stderr, "After add counts for backoff order %d ngrams %d\n", 2, moc->order_size(2));
 
   lm->set_type(TreeGram::INTERPOLATED);
   TreeGram::Gram gr;
@@ -840,19 +843,29 @@ void InterKn_t<KT, CT>::counts2lm(TreeGram *lm) {
   for (int o=1;o<=this->m_order;o++) {
     //fprintf(stderr,"Adding o %d\n",o);
     bool breaker=true;
+    int ngrams=0;
     v.resize(o);
     gr.resize(o);
     GramSorter gramsorter(o,moc->order_size(o));
+    fprintf(stderr, "order %d ngrams %d\n", o, moc->order_size(o));
     moc->StepCountsOrder(true,o,&v[0],&num);
     while (moc->StepCountsOrder(false,o,&v[0],&num)) {
-      prob=kn_prob(o,&v[0],num);
-      coeff=kn_coeff(o+1,&v[0]);
-      
       for (int i=0;i<o;i++) gr[i]=v[i];
-      fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
-      gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
+      
+      if (num == 0)
+        gramsorter.add_gram(gr,MINLOGPROB,0);
+      else {
+        ngrams++;
+        prob=kn_prob(o,&v[0],num);
+        coeff=kn_coeff(o+1,&v[0]);
+      
+        //fprintf(stderr,"to sorter: %.4f ",safelogprob(prob));print_indices(stderr, v); fprintf(stderr," %.4f\n", safelogprob(coeff));
+        gramsorter.add_gram(gr,safelogprob(prob),safelogprob2(coeff));
+      }
       breaker=false;
     }
+    fprintf(stderr, "order %d ngrams %d\n", o, moc->order_size(o));
+    fprintf(stderr,"order %d ngrams added %d ngrams registered %d\n", o, ngrams, gramsorter.num_grams());
     if (breaker) break;
     gramsorter.sort();
     for (size_t i = 0; i < gramsorter.num_grams(); i++) {
